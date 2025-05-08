@@ -1,0 +1,101 @@
+import { readFileSync } from "fs"
+import OpenAI from "openai"
+import { join } from "path"
+import post from "../../bot/post"
+import {
+  getAtMentionsAttachment,
+  getReplyAttachment
+} from "../../lib/attachment"
+import { getNonPolledUsers } from "../../lib/poll"
+import { ActionFn } from "../../types"
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+})
+
+export async function nudge({
+  botId,
+  groupId,
+  count,
+  messageId
+}: {
+  botId: string
+  groupId: string
+  count: number
+  messageId?: string
+}) {
+  // TODO: filter out already nudged users.
+  // This is handled by querying the list of messages occurring since
+  // the most recent poll was created, finding all bot messages that
+  // include a "reply" attachment linking to a /nudge message and a "mentions"
+  // attachment with the user IDs of the players that were nudged.
+  // We can then filter out the nonPolledUsers by the list of those user IDs.
+  // NOTE: we may need to not filter when the /nudge message itself also includes
+  // a "mentions" attachment. We could handle this case differently if we wanted,
+  // like to have fun with the user who nudged since the user they are trying to
+  // /nudge has already been nudged (AI response?).
+  const nonPolledUsers = await getNonPolledUsers({
+    groupId
+  })
+  const users = nonPolledUsers.slice(0, count)
+
+  if (users.length === 0) {
+    throw new Error("No players to nudge.")
+  }
+
+  const nicknames = users.map((user) => user.nickname)
+  const mdPath = join(__dirname, "instructions.md")
+  const instructions = readFileSync(mdPath, "utf-8")
+  const atMentions = nicknames.map((nickname) => `@${nickname}`).join(", ")
+  const input = `Nudge: ${atMentions}`
+
+  const response = await client.responses.create({
+    // model: "gpt-4o-mini",
+    model: "gpt-4o",
+    instructions,
+    input,
+    top_p: 0.5
+  })
+
+  const attachments = [
+    getAtMentionsAttachment({
+      users: users,
+      text: atMentions
+    })
+  ]
+
+  if (messageId) {
+    getReplyAttachment(messageId)
+  }
+
+  await post({
+    botId,
+    text: response.output_text,
+    attachments
+  })
+}
+
+const action: ActionFn = async ({ botId, group_id: groupId, id, text }) => {
+  // TODO: filter out already nudged users.
+  // This is handled by querying the list of messages occurring since
+  // the most recent poll was created, finding all bot messages that
+  // include a "reply" attachment linking to a /nudge message and a "mentions"
+  // attachment with the user IDs of the players that were nudged.
+  // We can then filter out the nonPolledUsers by the list of those user IDs.
+  // NOTE: we may need to not filter when the /nudge message itself also includes
+  // a "mentions" attachment. We could handle this case differently if we wanted,
+  // like to have fun with the user who nudged since the user they are trying to
+  // /nudge has already been nudged (AI response?).
+  const countRe = /\/nudge +(?<count>\d+)/
+  const matchCount = text.match(countRe)?.groups?.count || "1"
+  const count = matchCount ? parseInt(matchCount) : 0
+
+  await nudge({
+    botId,
+    groupId,
+    count,
+    messageId: id
+  })
+}
+
+export default action
