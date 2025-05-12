@@ -46,11 +46,16 @@ export async function nudge({
   const weightedYesLikelihood = computeWeightedYesLikelihood(memberVoteMap)
   // Sort the non-polled users by their weighted yes likelihood.
   // TODO: mv to util.
-  const sortedNonPolledUsers = nonPolledUsers.sort((a, b) => {
-    const aProbability = weightedYesLikelihood[a.user_id].likelihood || 0
-    const bProbability = weightedYesLikelihood[b.user_id].likelihood || 0
-    return bProbability - aProbability
-  })
+  const sortedNonPolledUsers = nonPolledUsers
+    .filter((user) => {
+      // Filter out users without a "yes" vote in the last 12 polls.
+      weightedYesLikelihood[user.user_id].likelihood > 0
+    })
+    .sort((a, b) => {
+      const aProbability = weightedYesLikelihood[a.user_id].likelihood || 0
+      const bProbability = weightedYesLikelihood[b.user_id].likelihood || 0
+      return bProbability - aProbability
+    })
 
   const users = sortedNonPolledUsers.slice(0, count)
 
