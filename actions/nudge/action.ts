@@ -48,8 +48,9 @@ export async function nudge({
   // TODO: mv to util.
   const sortedNonPolledUsers = nonPolledUsers
     .filter((user) => {
-      // Filter out users without a "yes" vote in the last 12 polls.
-      weightedYesLikelihood[user.user_id].likelihood > 0
+      // Filter out users who have not voted in the last 12 polls.
+      weightedYesLikelihood[user.user_id].likelihood > 0 ||
+        weightedYesLikelihood[user.user_id].confidence > 0
     })
     .sort((a, b) => {
       const aProbability = weightedYesLikelihood[a.user_id].likelihood || 0
