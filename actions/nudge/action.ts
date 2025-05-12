@@ -6,7 +6,11 @@ import {
   getAtMentionsAttachment,
   getReplyAttachment
 } from "../../lib/attachment"
-import { getNonPolledUsers } from "../../lib/poll"
+import {
+  computeWeightedYesLikelihood,
+  getMemberVote,
+  getNonPolledUsers
+} from "../../lib/poll"
 import { ActionFn } from "../../types"
 
 const client = new OpenAI({
@@ -37,7 +41,18 @@ export async function nudge({
   const nonPolledUsers = await getNonPolledUsers({
     groupId
   })
-  const users = nonPolledUsers.slice(0, count)
+  const memberVoteMap = await getMemberVote({ groupId })
+  // Get the weighted yes likelihood for each user.
+  const weightedYesLikelihood = computeWeightedYesLikelihood(memberVoteMap)
+  // Sort the non-polled users by their weighted yes likelihood.
+  // TODO: mv to util.
+  const sortedNonPolledUsers = nonPolledUsers.sort((a, b) => {
+    const aProbability = weightedYesLikelihood[a.user_id].likelihood || 0
+    const bProbability = weightedYesLikelihood[b.user_id].likelihood || 0
+    return bProbability - aProbability
+  })
+
+  const users = sortedNonPolledUsers.slice(0, count)
 
   if (users.length === 0) {
     throw new Error("No players to nudge.")
