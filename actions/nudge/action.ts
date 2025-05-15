@@ -11,7 +11,7 @@ import {
   getMemberVote,
   getNonPolledUsers
 } from "../../lib/poll"
-import { ActionFn } from "../../types"
+import { ActionFn, GroupMeUser } from "../../types"
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -49,13 +49,17 @@ export async function nudge({
   const sortedNonPolledUsers = nonPolledUsers
     .filter((user) => {
       // Filter out users who have not voted in the last 12 polls.
-      weightedYesLikelihood[user.user_id].likelihood > 0 ||
-        weightedYesLikelihood[user.user_id].confidence > 0
+      return weightedYesLikelihood[user.user_id].confidence > 0
     })
     .sort((a, b) => {
-      const aProbability = weightedYesLikelihood[a.user_id].likelihood || 0
-      const bProbability = weightedYesLikelihood[b.user_id].likelihood || 0
-      return bProbability - aProbability
+      // Weight the likelihood by the confidence.
+      // The higher the confidence, the more likely they are to vote.
+      function getProbability(user: GroupMeUser) {
+        const likelihood = weightedYesLikelihood[user.user_id].likelihood || 0
+        const confidence = weightedYesLikelihood[user.user_id].confidence || 0
+        return likelihood * confidence
+      }
+      return getProbability(b) - getProbability(a)
     })
 
   const users = sortedNonPolledUsers.slice(0, count)
