@@ -4,8 +4,6 @@ import { ActionFn } from "../../types"
 // Util for creating a poll in a groupme group.
 // The poll is hardcoded to ask if people are coming tomorrow for soccer,
 // so, very specific use case.
-
-// TODO: first check if a poll is already active!
 const action: ActionFn = async ({ group_id: groupId }) => {
   const token = process.env.GROUP_ME_API_ACCESS_TOKEN
 
