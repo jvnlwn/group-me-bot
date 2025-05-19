@@ -4,6 +4,7 @@ import nudge from "../../../actions/nudge/action"
 import poll from "../../../actions/poll/action"
 import post from "../../../bot/post"
 import { getReplyAttachment } from "../../../lib/attachment"
+import { pinPollMessage, unpinPollMessage } from "../../../lib/message"
 import { getGroupAndBotId } from "../../../lib/schema"
 import { BotCallbackData } from "../../../types"
 
@@ -50,6 +51,12 @@ export default async function handler(
         })
         return
       }
+    } else if (data.sender_id !== botId) {
+      // TODO: refactor this approach. Maybe add a function that accepts
+      // callbacks like "onPollCreated" and "onPollEnded" to handle the
+      // pinning and unpinning of messages.
+      await pinPollMessage(data)
+      await unpinPollMessage(data)
     }
   } catch (error) {
     await post({

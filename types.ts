@@ -100,7 +100,38 @@ export type GroupMeAttachment =
       reply_id: string
       base_reply_id: string
     }
+  | {
+      type: "poll"
+      poll_id: string
+    }
 
 export type ActionFn = (
   options: BotCallbackData & { botId: string }
 ) => Promise<any>
+
+export type GroupMePinnedMessage = {
+  attachments: GroupMeAttachment[]
+  avatar_url: string
+  created_at: number
+  favorited_by: string[]
+  group_id: string
+  id: string
+  name: string
+  sender_id: string
+  sender_type: string
+  source_guid: string
+  system: boolean
+  text: string
+  user_id: string
+  event: {
+    type: "poll.created" | string
+    data: {
+      conversation: { id: string }
+      poll: { id: string; subject: string }
+      user: { id: string; nickname: string }
+    }
+  }
+  platform: string
+  pinned_at: number
+  pinned_by: string
+}
