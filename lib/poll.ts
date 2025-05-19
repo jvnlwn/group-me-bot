@@ -4,7 +4,7 @@ import { getGroup } from "./group"
 // There are currently two disctinct soccer emojis used in
 // soccer poll subjects. There may be no visiual difference,
 // but they are not equivalent strings.
-const soccerEmojiis = ["⚽️", "⚽"]
+export const pollTitles = ["⚽️", "⚽"]
 
 const token = process.env.GROUP_ME_API_ACCESS_TOKEN
 
@@ -32,7 +32,7 @@ export async function getPolls({ groupId }: { groupId: string | number }) {
 
 export async function getActivePoll({ polls }: { polls: GroupMePoll[] }) {
   const activePoll = polls.find(
-    (poll) => poll.status === "active" && soccerEmojiis.includes(poll.subject)
+    (poll) => poll.status === "active" && pollTitles.includes(poll.subject)
   )
 
   return activePoll
@@ -86,13 +86,13 @@ export async function getMemberVote({
     getGroup({ groupId })
   ])
   const activePoll = polls.find(
-    (poll) => poll.status === "active" && soccerEmojiis.includes(poll.subject)
+    (poll) => poll.status === "active" && pollTitles.includes(poll.subject)
   )
   // Only taking a sample, that of the last 12 expired polls.
   // The more recent the data, the more relevant it is.
   const latestExpiredPolls = polls
     .filter(
-      (poll) => poll.status !== "active" && soccerEmojiis.includes(poll.subject)
+      (poll) => poll.status !== "active" && pollTitles.includes(poll.subject)
     )
     .slice(0, 12)
 
