@@ -5,7 +5,13 @@ import { ActionFn } from "../../types"
 // Util for creating a poll in a groupme group.
 // The poll is hardcoded to ask if people are coming tomorrow for soccer,
 // so, very specific use case.
-const action: ActionFn = async ({ group_id: groupId, created_at }) => {
+export async function createPoll({
+  groupId: groupId,
+  date
+}: {
+  groupId: string
+  date: number
+}) {
   const token = process.env.GROUP_ME_API_ACCESS_TOKEN
 
   const activePoll = await getActivePoll({ polls: await getPolls({ groupId }) })
@@ -15,7 +21,7 @@ const action: ActionFn = async ({ group_id: groupId, created_at }) => {
   }
 
   // Set the expiration relative to the created date.
-  const epxirationUTCDate = new Date(created_at * 1000)
+  const epxirationUTCDate = new Date(date * 1000)
 
   // Create a date expiring at 9pm ET. You may have to define timezone for
   // each group if you don't want to hardcode this.
@@ -57,6 +63,13 @@ const action: ActionFn = async ({ group_id: groupId, created_at }) => {
 
   const data = await response.json()
   return data
+}
+
+const action: ActionFn = async ({ group_id: groupId, created_at }) => {
+  return createPoll({
+    groupId,
+    date: created_at
+  })
 }
 
 export default action
