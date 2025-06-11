@@ -13,6 +13,11 @@ export default async function handler(
   req: VercelRequest & { body: BotCallbackData },
   res: VercelResponse
 ) {
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method Not Allowed" })
+    return
+  }
+
   // The req.query.group_id could be a string or an array of strings.
   // We need to cast it to a string to use it as a key in the botIdMap.
   const { groupId, botId } = getGroupAndBotId(req.query.group_id)
@@ -24,11 +29,15 @@ export default async function handler(
       count: Infinity
     })
   } catch (error) {
-    // TODO: we don't really want to send the "No players to nudge" error.
-    await post({
-      botId,
-      text: `Error: ${(error as Error).message}`
-    })
+    // Only send an error message if it's not "No players to nudge"
+    if ((error as Error).message !== "No players to nudge") {
+      await post({
+        botId,
+        text: `Error: ${(error as Error).message}`
+      })
+    } else {
+      res.status(200).json({ message: "No players to nudge" })
+    }
   }
 
   res.status(200).json({ message: "Success" })
