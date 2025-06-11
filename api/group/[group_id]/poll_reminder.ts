@@ -4,9 +4,6 @@ import post from "../../../bot/post"
 import { getGroupAndBotId } from "../../../lib/schema"
 import { BotCallbackData } from "../../../types"
 
-// TODO: only accept POST requests. We don't want to arbitrarily
-// hit this endpoint and trigger the nudge action.
-
 // The callback URL which GroupMe will call when a user sends a message to the chat
 // which the bot is in.
 export default async function handler(
