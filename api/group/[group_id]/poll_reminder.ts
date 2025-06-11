@@ -29,14 +29,19 @@ export default async function handler(
       count: Infinity
     })
   } catch (error) {
+    // Ignore sending certain errors as bot messages.
+    const ignoredErrors = ["No players to nudge.", "No active poll found."]
+
+    const message = (error as Error).message
+
     // Only send an error message if it's not "No players to nudge"
-    if ((error as Error).message !== "No players to nudge") {
+    if (!ignoredErrors.includes(message)) {
       await post({
         botId,
-        text: `Error: ${(error as Error).message}`
+        text: `Error: ${message}`
       })
     } else {
-      res.status(200).json({ message: "No players to nudge" })
+      res.status(200).json({ message })
     }
   }
 
