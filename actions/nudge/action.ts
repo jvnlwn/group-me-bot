@@ -1,4 +1,4 @@
-import { readFileSync } from "fs"
+import { readdirSync, readFileSync } from "fs"
 import OpenAI from "openai"
 import { join } from "path"
 import post from "../../bot/post"
@@ -69,7 +69,18 @@ export async function nudge({
   }
 
   const nicknames = users.map((user) => user.nickname)
-  const mdPath = join(__dirname, "instructions.md")
+
+  // Get the total number of instructions-*.md files and choose
+  // a random number between 0 and the total number of files
+  const dir = readdirSync(join(__dirname))
+  const totalInstructions = dir.filter(
+    (file) => file.startsWith("instructions-") && file.endsWith(".md")
+  ).length
+  const randomInstructionsIndex = Math.floor(Math.random() * totalInstructions)
+  const mdPath = join(
+    __dirname,
+    `instructions-${randomInstructionsIndex + 1}.md`
+  )
   const instructions = readFileSync(mdPath, "utf-8")
   const atMentions = nicknames.map((nickname) => `@${nickname}`).join(", ")
   const input = `Nudge: ${atMentions}`
