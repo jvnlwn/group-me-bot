@@ -1,4 +1,7 @@
 import { DateTime } from "luxon"
+import post from "../../bot/post"
+import { getReplyAttachment } from "../../lib/attachment"
+import { getPinnedMessages, unpinMessage } from "../../lib/message"
 import { getActivePoll, getPolls } from "../../lib/poll"
 import { ActionFn } from "../../types"
 
@@ -6,9 +9,11 @@ import { ActionFn } from "../../types"
 // The poll is hardcoded to ask if people are coming tomorrow for soccer,
 // so, very specific use case.
 export async function createPoll({
-  groupId: groupId,
+  botId,
+  groupId,
   date
 }: {
+  botId: string
   groupId: string
   date: number
 }) {
@@ -18,6 +23,34 @@ export async function createPoll({
 
   if (activePoll) {
     throw new Error("An active poll already exists.")
+  }
+
+  // Now check for if the next poll should be skipped.
+  // We'll query for a bot message where the attachment contains
+  // the "skip" keyword.
+  const { messages: pinnedMessages } = await getPinnedMessages({
+    groupId
+  })
+  // Find the pinned message with the poll.created event type.
+  const pinnedSkipMessage = pinnedMessages.find((message) => {
+    return (
+      message.sender_type === "bot" &&
+      message.text === "The next poll will be skipped."
+    )
+  })
+
+  if (pinnedSkipMessage) {
+    await post({
+      botId,
+      text: "Reminder: skipping today's poll.",
+      attachments: [getReplyAttachment(pinnedSkipMessage.id)]
+    })
+
+    await unpinMessage({
+      groupId,
+      messageId: pinnedSkipMessage.id
+    })
+    return
   }
 
   // Set the expiration relative to the created date.
@@ -65,8 +98,9 @@ export async function createPoll({
   return data
 }
 
-const action: ActionFn = async ({ group_id: groupId, created_at }) => {
+const action: ActionFn = async ({ botId, group_id: groupId, created_at }) => {
   return createPoll({
+    botId,
     groupId,
     date: created_at
   })

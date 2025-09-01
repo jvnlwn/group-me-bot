@@ -21,7 +21,8 @@ export default async function handler(
 
   try {
     await createPoll({
-      groupId: groupId,
+      botId,
+      groupId,
       date: new Date().getTime() / 1000
     })
   } catch (error) {

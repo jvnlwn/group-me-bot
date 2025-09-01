@@ -11,7 +11,7 @@ import {
   getMemberVote,
   getNonPolledUsers
 } from "../../lib/poll"
-import { ActionFn, GroupMeUser } from "../../types"
+import { ActionFn, GroupMeAttachment, GroupMeUser } from "../../types"
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -93,7 +93,7 @@ export async function nudge({
     top_p: 0.5
   })
 
-  const attachments = [
+  const attachments: GroupMeAttachment[] = [
     getAtMentionsAttachment({
       users: users,
       text: atMentions
@@ -101,7 +101,7 @@ export async function nudge({
   ]
 
   if (messageId) {
-    getReplyAttachment(messageId)
+    attachments.push(getReplyAttachment(messageId))
   }
 
   await post({
