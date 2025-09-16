@@ -12,12 +12,14 @@ export async function createPoll({
   botId,
   groupId,
   date,
-  title
+  title,
+  retry
 }: {
   botId: string
   groupId: string
   date: number
   title?: string
+  retry?: boolean
 }) {
   const token = process.env.GROUP_ME_API_ACCESS_TOKEN
 
@@ -52,6 +54,36 @@ export async function createPoll({
       groupId,
       messageId: pinnedSkipMessage.id
     })
+    return
+  }
+
+  // Find the pinned message with the poll.created event type.
+  const pinnedRetryMessage = pinnedMessages.find((message) => {
+    return (
+      message.sender_type === "bot" &&
+      message.text === "The poll will be retried."
+    )
+  })
+
+  if (pinnedRetryMessage) {
+    if (retry) {
+      await post({
+        botId,
+        text: "Reminder: retrying the previous poll.",
+        attachments: [getReplyAttachment(pinnedRetryMessage.id)]
+      })
+    }
+
+    await unpinMessage({
+      groupId,
+      messageId: pinnedRetryMessage.id
+    })
+
+    if (!retry) {
+      return
+    }
+  } else if (retry) {
+    // No poll to retry.
     return
   }
 

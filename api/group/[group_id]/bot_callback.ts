@@ -2,6 +2,7 @@ import { VercelRequest, VercelResponse } from "@vercel/node"
 import end_poll from "../../../actions/end_poll/action"
 import nudge from "../../../actions/nudge/action"
 import poll from "../../../actions/poll/action"
+import retry from "../../../actions/retry/action"
 import skip from "../../../actions/skip/action"
 import post from "../../../bot/post"
 import { getReplyAttachment } from "../../../lib/attachment"
@@ -13,7 +14,7 @@ import {
 import { getGroupAndBotId } from "../../../lib/schema"
 import { BotCallbackData } from "../../../types"
 
-const actions = { nudge, poll, end_poll, skip }
+const actions = { nudge, poll, end_poll, skip, retry }
 
 // The callback URL which GroupMe will call when a user sends a message to the chat
 // which the bot is in.
@@ -34,10 +35,15 @@ export default async function handler(
     if (data.sender_type === "bot") {
       // Handle bot messages here.
 
-      // Automatically pin the "skip" message. We'll unpin when the next
-      // attempt to poll occurs (when the bot will send a reminder message
-      // about the poll being skipped).
-      if (data.text === "The next poll will be skipped.") {
+      // Automatically pin the "skip" and "retry" messages.
+      // We'll unpin these messages when the next attempt to
+      // poll occurs (when the bot will send a reminder message about
+      // the poll being skipped, in the "skip" case, or when the
+      // scheduled retry occurs, in the "retry" case).
+      if (
+        data.text === "The next poll will be skipped." ||
+        data.text === "The poll will be retried."
+      ) {
         await pinMessage({
           groupId,
           messageId: data.id
