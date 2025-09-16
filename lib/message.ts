@@ -83,7 +83,7 @@ export async function pinPollMessage({
   attachments
 }: BotCallbackData) {
   const pollId = attachments?.[0]?.poll_id
-  const re = new RegExp(`^created new poll '(${pollTitles.join("|")})'$`, "i")
+  const re = new RegExp(`^created new poll '(${pollTitles.join("|")}).+'$`, "i")
   const created = re.test(text)
   if (pollId && created) {
     await pinMessage({
@@ -96,7 +96,7 @@ export async function pinPollMessage({
 // Unpin "created poll" message.
 // Note that the BotCallbackData will contain no reference to the poll.
 export async function unpinPollMessage({ group_id, text }: BotCallbackData) {
-  const re = new RegExp(`^poll '(${pollTitles.join("|")})' has expired$`, "i")
+  const re = new RegExp(`^poll '(${pollTitles.join("|")}).+' has expired$`, "i")
   const expired = re.test(text)
   if (expired) {
     const { messages: pinnedMessages } = await getPinnedMessages({

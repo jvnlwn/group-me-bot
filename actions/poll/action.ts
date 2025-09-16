@@ -11,11 +11,13 @@ import { ActionFn } from "../../types"
 export async function createPoll({
   botId,
   groupId,
-  date
+  date,
+  title
 }: {
   botId: string
   groupId: string
   date: number
+  title?: string
 }) {
   const token = process.env.GROUP_ME_API_ACCESS_TOKEN
 
@@ -81,7 +83,7 @@ export async function createPoll({
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        subject: "⚽",
+        subject: title ? `⚽ ${title}` : "⚽",
         options: [{ title: "Yes" }, { title: "No" }],
         expiration: expirationUTCTime,
         visibility: "public",
@@ -98,10 +100,19 @@ export async function createPoll({
   return data
 }
 
-const action: ActionFn = async ({ botId, group_id: groupId, created_at }) => {
+const action: ActionFn = async ({
+  botId,
+  group_id: groupId,
+  created_at,
+  text
+}) => {
+  const titleRe = /\/poll *(?<title>.+)/
+  const title = text.match(titleRe)?.groups?.title || ""
+
   return createPoll({
     botId,
     groupId,
+    title,
     date: created_at
   })
 }
