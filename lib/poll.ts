@@ -32,7 +32,7 @@ export async function getPolls({ groupId }: { groupId: string | number }) {
 
 export async function getActivePoll({ polls }: { polls: GroupMePoll[] }) {
   const activePoll = polls.find(
-    (poll) => poll.status === "active" && pollTitles.includes(poll.subject[0])
+    (poll) => poll.status === "active" && pollTitles.includes(poll.subject?.[0])
   )
 
   return activePoll
@@ -86,13 +86,14 @@ export async function getMemberVote({
     getGroup({ groupId })
   ])
   const activePoll = polls.find(
-    (poll) => poll.status === "active" && pollTitles.includes(poll.subject[0])
+    (poll) => poll.status === "active" && pollTitles.includes(poll.subject?.[0])
   )
   // Only taking a sample, that of the last 12 expired polls.
   // The more recent the data, the more relevant it is.
   const latestExpiredPolls = polls
     .filter(
-      (poll) => poll.status !== "active" && pollTitles.includes(poll.subject[0])
+      (poll) =>
+        poll.status !== "active" && pollTitles.includes(poll.subject?.[0])
     )
     .slice(0, 12)
 
