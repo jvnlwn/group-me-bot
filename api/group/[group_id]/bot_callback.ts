@@ -1,4 +1,5 @@
 import { VercelRequest, VercelResponse } from "@vercel/node"
+import check from "../../../actions/check/action"
 import end_poll from "../../../actions/end_poll/action"
 import nudge from "../../../actions/nudge/action"
 import poll from "../../../actions/poll/action"
@@ -14,7 +15,7 @@ import {
 import { getGroupAndBotId } from "../../../lib/schema"
 import { BotCallbackData } from "../../../types"
 
-const actions = { nudge, poll, end_poll, skip, retry }
+const actions = { nudge, poll, end_poll, skip, retry, check }
 
 // The callback URL which GroupMe will call when a user sends a message to the chat
 // which the bot is in.
