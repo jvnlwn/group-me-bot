@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from "@vercel/node"
-import check from "../../../actions/check/action"
+import check, { getPollResultsText } from "../../../actions/check/action"
 import end_poll from "../../../actions/end_poll/action"
 import nudge from "../../../actions/nudge/action"
 import poll from "../../../actions/poll/action"
@@ -8,10 +8,13 @@ import skip from "../../../actions/skip/action"
 import post from "../../../bot/post"
 import { getReplyAttachment } from "../../../lib/attachment"
 import {
+  isPollCreatedMessage,
+  isPollExpiredMessage,
   pinMessage,
   pinPollMessage,
   unpinPollMessage
 } from "../../../lib/message"
+import { getExpiredPoll, getPolls } from "../../../lib/poll"
 import { getGroupAndBotId } from "../../../lib/schema"
 import { BotCallbackData } from "../../../types"
 
@@ -86,8 +89,19 @@ export default async function handler(
       // TODO: refactor this approach. Maybe add a function that accepts
       // callbacks like "onPollCreated" and "onPollEnded" to handle the
       // pinning and unpinning of messages.
-      await pinPollMessage(data)
-      await unpinPollMessage(data)
+      if (isPollCreatedMessage(data)) await pinPollMessage(data)
+      if (isPollExpiredMessage(data)) {
+        await Promise.all([
+          unpinPollMessage(data),
+          // Send final poll results.
+          post({
+            botId,
+            text: `Final Poll Results: ${getPollResultsText(
+              getExpiredPoll({ polls: await getPolls({ groupId }) })
+            )}`
+          })
+        ])
+      }
     }
   } catch (error) {
     await post({

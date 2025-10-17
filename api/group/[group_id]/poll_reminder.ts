@@ -1,4 +1,5 @@
 import { VercelRequest, VercelResponse } from "@vercel/node"
+import { check } from "../../../actions/check/action"
 import { nudge } from "../../../actions/nudge/action"
 import post from "../../../bot/post"
 import { getGroupAndBotId } from "../../../lib/schema"
@@ -20,11 +21,21 @@ export default async function handler(
   const { groupId, botId } = getGroupAndBotId(req.query.group_id)
 
   try {
-    await nudge({
-      botId,
-      groupId: groupId,
-      count: Infinity
-    })
+    // For now at least, conveniently note the current poll results.
+    const promises = [
+      check({
+        botId,
+        groupId: groupId
+      }),
+
+      nudge({
+        botId,
+        groupId: groupId,
+        count: Infinity
+      })
+    ]
+
+    await Promise.all(promises)
   } catch (error) {
     // Ignore sending certain errors as bot messages.
     const ignoredErrors = ["No players to nudge.", "No active poll found."]

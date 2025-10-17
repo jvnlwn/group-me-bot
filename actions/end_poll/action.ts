@@ -8,7 +8,7 @@ const action: ActionFn = async ({ group_id: groupId }) => {
   const activePoll = await getActivePoll({ polls: await getPolls({ groupId }) })
 
   if (!activePoll) {
-    throw new Error("No active poll exists.")
+    throw new Error("No active poll found.")
   }
 
   const pollId = activePoll.id

@@ -1,13 +1,19 @@
 import post from "../../bot/post"
 import { getReplyAttachment } from "../../lib/attachment"
 import { getActivePoll, getPolls } from "../../lib/poll"
-import { ActionFn, GroupMeAttachment } from "../../types"
+import { ActionFn, GroupMeAttachment, GroupMePoll } from "../../types"
+
+export function getPollResultsText(poll: GroupMePoll) {
+  return poll.options
+    .map((option) => `${option.votes || 0} ${option.title}`)
+    .join(", ")
+}
 
 // Check for current poll results. Mainly just a workaround for a bug in Group Me where
 // poll results can be stale in the app.
 export async function check({
   botId,
-  groupId: groupId,
+  groupId,
   messageId
 }: {
   botId: string
@@ -17,12 +23,10 @@ export async function check({
   const activePoll = await getActivePoll({ polls: await getPolls({ groupId }) })
 
   if (!activePoll) {
-    throw new Error("No active poll exists.")
+    throw new Error("No active poll found.")
   }
 
-  const text = `Current Poll Results: ${activePoll.options
-    .map((option) => `${option.votes || 0} ${option.title}`)
-    .join(", ")}`
+  const text = `Current Poll Results: ${getPollResultsText(activePoll)}`
 
   const attachments: GroupMeAttachment[] = []
 

@@ -73,19 +73,26 @@ export async function unpinMessage({
   }
 }
 
+export function isPollCreatedMessage({ text }: BotCallbackData) {
+  const re = new RegExp(`^created new poll '(${pollTitles.join("|")}).*'$`, "i")
+  return re.test(text)
+}
+
+export function isPollExpiredMessage({ text }: BotCallbackData) {
+  const re = new RegExp(`^poll '(${pollTitles.join("|")}).*' has expired$`, "i")
+  return re.test(text)
+}
+
 // Pin "created poll" message.
 // Note that the BotCallbackData will contain no event type so
 // it must be inferred from the text string.
 export async function pinPollMessage({
   id,
   group_id,
-  text,
   attachments
 }: BotCallbackData) {
   const pollId = attachments?.[0]?.poll_id
-  const re = new RegExp(`^created new poll '(${pollTitles.join("|")}).+'$`, "i")
-  const created = re.test(text)
-  if (pollId && created) {
+  if (pollId) {
     await pinMessage({
       groupId: group_id,
       messageId: id
@@ -95,23 +102,19 @@ export async function pinPollMessage({
 
 // Unpin "created poll" message.
 // Note that the BotCallbackData will contain no reference to the poll.
-export async function unpinPollMessage({ group_id, text }: BotCallbackData) {
-  const re = new RegExp(`^poll '(${pollTitles.join("|")}).+' has expired$`, "i")
-  const expired = re.test(text)
-  if (expired) {
-    const { messages: pinnedMessages } = await getPinnedMessages({
-      groupId: group_id
-    })
-    // Find the pinned message with the poll.created event type.
-    const pinnedMessage = pinnedMessages.find((message) => {
-      return message.event?.type === "poll.created"
-    })
+export async function unpinPollMessage({ group_id }: BotCallbackData) {
+  const { messages: pinnedMessages } = await getPinnedMessages({
+    groupId: group_id
+  })
+  // Find the pinned message with the poll.created event type.
+  const pinnedMessage = pinnedMessages.find((message) => {
+    return message.event?.type === "poll.created"
+  })
 
-    if (pinnedMessage) {
-      await unpinMessage({
-        groupId: group_id,
-        messageId: pinnedMessage.id
-      })
-    }
+  if (pinnedMessage) {
+    await unpinMessage({
+      groupId: group_id,
+      messageId: pinnedMessage.id
+    })
   }
 }

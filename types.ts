@@ -20,7 +20,7 @@ export type GroupMePoll = {
   conversation_id: string
   created_at: number
   expiration: number
-  status: string
+  status: "active" | "past"
   options: {
     id: string
     title: string

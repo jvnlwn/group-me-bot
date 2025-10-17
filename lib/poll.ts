@@ -30,12 +30,25 @@ export async function getPolls({ groupId }: { groupId: string | number }) {
   return data.polls.map((poll) => poll.data)
 }
 
-export async function getActivePoll({ polls }: { polls: GroupMePoll[] }) {
+export function getActivePoll({ polls }: { polls: GroupMePoll[] }) {
   const activePoll = polls.find(
     (poll) => poll.status === "active" && pollTitles.includes(poll.subject?.[0])
   )
 
   return activePoll
+}
+
+// Get's most recenty expired poll.
+export function getExpiredPoll({ polls }: { polls: GroupMePoll[] }) {
+  const expiredPoll = polls
+    .filter(
+      (poll) => poll.status === "past" && pollTitles.includes(poll.subject?.[0])
+    )
+    .sort((a, b) => {
+      return b.expiration - a.expiration
+    })[0]
+
+  return expiredPoll
 }
 
 // Util for getting a list of users who have not yet responded to a poll in a groupme group.
