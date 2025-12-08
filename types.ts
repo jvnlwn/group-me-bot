@@ -13,20 +13,22 @@ export type BotCallbackData = {
   user_id: string
 }
 
+export type GroupMePollOption = {
+  id: string
+  title: string
+  votes: number
+  voter_ids: string[]
+}
+
 export type GroupMePoll = {
   id: string
   subject: string
   owner_id: string
-  conversation_id: string
+  conversation_id: string // group ID
   created_at: number
   expiration: number
   status: "active" | "past"
-  options: {
-    id: string
-    title: string
-    votes: number
-    voter_ids: string[]
-  }[]
+  options: GroupMePollOption[]
   last_modified: number
   type: string
   visibility: string

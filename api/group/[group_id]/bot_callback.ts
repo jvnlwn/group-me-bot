@@ -2,6 +2,7 @@ import { VercelRequest, VercelResponse } from "@vercel/node"
 import check, { getPollResultsText } from "../../../actions/check/action"
 import end_poll from "../../../actions/end_poll/action"
 import nudge from "../../../actions/nudge/action"
+import offset from "../../../actions/offset/action"
 import poll from "../../../actions/poll/action"
 import retry from "../../../actions/retry/action"
 import skip from "../../../actions/skip/action"
@@ -18,7 +19,7 @@ import { getExpiredPoll, getPolls } from "../../../lib/poll"
 import { getGroupAndBotId } from "../../../lib/schema"
 import { BotCallbackData } from "../../../types"
 
-const actions = { nudge, poll, end_poll, skip, retry, check }
+const actions = { nudge, poll, end_poll, skip, retry, check, offset }
 
 // The callback URL which GroupMe will call when a user sends a message to the chat
 // which the bot is in.
@@ -96,7 +97,7 @@ export default async function handler(
           // Send final poll results.
           post({
             botId,
-            text: `Final Poll Results: ${getPollResultsText(
+            text: `Final Poll Results: ${await getPollResultsText(
               getExpiredPoll({ polls: await getPolls({ groupId }) })
             )}`
           })

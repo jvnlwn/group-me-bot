@@ -1,4 +1,4 @@
-import { BotCallbackData, GroupMePinnedMessage } from "../types"
+import { BotCallbackData, GroupMeMessage, GroupMePinnedMessage } from "../types"
 import { pollTitles } from "./poll"
 
 const token = process.env.GROUP_ME_API_ACCESS_TOKEN
@@ -73,12 +73,12 @@ export async function unpinMessage({
   }
 }
 
-export function isPollCreatedMessage({ text }: BotCallbackData) {
+export function isPollCreatedMessage({ text }: Pick<BotCallbackData, "text">) {
   const re = new RegExp(`^created new poll '(${pollTitles.join("|")}).*'$`, "i")
   return re.test(text)
 }
 
-export function isPollExpiredMessage({ text }: BotCallbackData) {
+export function isPollExpiredMessage({ text }: Pick<BotCallbackData, "text">) {
   const re = new RegExp(`^poll '(${pollTitles.join("|")}).*' has expired$`, "i")
   return re.test(text)
 }
@@ -117,4 +117,53 @@ export async function unpinPollMessage({ group_id }: BotCallbackData) {
       messageId: pinnedMessage.id
     })
   }
+}
+
+export async function getMessages({
+  groupId,
+  limit,
+  ...args
+}: {
+  groupId: string
+  // 20 is the default, max of 100.
+  limit?: number
+} & ( // If before_id is provided, then messages immediately preceding the given message will be returned, in descending order. This can be used to continually page back through a group's messages.
+  | { beforeId?: string }
+  // The after_id parameter will return messages that immediately follow a given message, this time in ascending order (which makes it easy to pick off the last result for continued pagination).
+  | { afterId?: string }
+  // Finally, the since_id parameter also returns messages created after the given message, but it retrieves the most recent messages. For example, if more than twenty messages are created after the since_id message, using this parameter will omit the messages that immediately follow the given message. This is a bit counterintuitive, so take care.
+  | { sinceId?: string }
+)) {
+  const url = new URL(`https://api.groupme.com/v3/groups/${groupId}/messages`)
+  url.searchParams.append("token", token || "")
+  url.searchParams.append("limit", limit?.toString() || "20")
+
+  if ("beforeId" in args && args.beforeId) {
+    url.searchParams.append("before_id", args.beforeId)
+  }
+
+  if ("afterId" in args && args.afterId) {
+    url.searchParams.append("after_id", args.afterId)
+  }
+
+  if ("sinceId" in args && args.sinceId) {
+    url.searchParams.append("since_id", args.sinceId)
+  }
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json"
+    }
+  })
+
+  if (!response.ok) {
+    throw new Error("Failed to get messages.")
+  }
+
+  const { response: data } = (await response.json()) as {
+    response: { messages: GroupMeMessage[]; count: number }
+  }
+
+  return data.messages
 }
