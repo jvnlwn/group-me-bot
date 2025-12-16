@@ -22,9 +22,16 @@ export async function getPollResultsText(poll: GroupMePoll) {
     return pollVotes
   }
 
-  return poll.options
+  // Build result text, this line totaling each option with the offset applied.
+  const resultText = poll.options
     .map((option) => `${getOptionOffset(option)} ${option.title}`)
     .join(", ")
+
+  // Append offset information if applicable.
+  const offsetText =
+    offset !== 0 ? `\n(Offset: ${offset >= 0 ? "+" : "-"}${offset})` : ""
+
+  return resultText + offsetText
 }
 
 async function getPollOffset(poll: GroupMePoll) {
