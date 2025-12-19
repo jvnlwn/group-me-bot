@@ -148,5 +148,5 @@ export type GroupMeMessage = {
   sender_id: string
   sender_type: string
   source_guid: string
-  text: string
+  text: string | null
 }

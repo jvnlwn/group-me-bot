@@ -73,14 +73,14 @@ export async function unpinMessage({
   }
 }
 
-export function isPollCreatedMessage({ text }: Pick<BotCallbackData, "text">) {
+export function isPollCreatedMessage({ text }: { text: string | null }) {
   const re = new RegExp(`^created new poll '(${pollTitles.join("|")}).*'$`, "i")
-  return re.test(text)
+  return !!text && re.test(text)
 }
 
-export function isPollExpiredMessage({ text }: Pick<BotCallbackData, "text">) {
+export function isPollExpiredMessage({ text }: { text: string | null }) {
   const re = new RegExp(`^poll '(${pollTitles.join("|")}).*' has expired$`, "i")
-  return re.test(text)
+  return !!text && re.test(text)
 }
 
 // Pin "created poll" message.

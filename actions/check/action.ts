@@ -57,7 +57,7 @@ async function getPollOffset(poll: GroupMePoll) {
   // Reduce messages to get total offset amount.
   const totalOffset = relevantMessages.reduce<number>((acc, message) => {
     const { text } = message
-    const match = text.match(titleRe)
+    const match = text?.match(titleRe)
     if (match?.groups) {
       const { offsetOperand, offsetValue } = match.groups
       const offsetAmount =
