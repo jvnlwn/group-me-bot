@@ -16,8 +16,8 @@ import {
   unpinPollMessage
 } from "../../../lib/message"
 import { getExpiredPoll, getPolls } from "../../../lib/poll"
-import { captureApiError } from "../../../lib/sentry"
 import { getGroupAndBotId } from "../../../lib/schema"
+import { captureApiError } from "../../../lib/sentry"
 import { BotCallbackData } from "../../../types"
 
 const actions = { nudge, poll, end_poll, skip, retry, check, offset }
@@ -106,16 +106,20 @@ export default async function handler(
       }
     }
   } catch (error) {
+    const action = data.text?.startsWith("/")
+      ? data.text.match(/\/(?<action>\w+)/)?.groups?.action
+      : undefined
+
     captureApiError(error, {
       endpoint: "bot_callback",
       groupId,
-      action: data.text?.startsWith("/")
-        ? data.text.match(/\/(?<action>\w+)/)?.groups?.action
-        : undefined
+      action
     })
     await post({
       botId,
-      text: `Error: ${(error as Error).message}`,
+      text: action
+        ? `Error (${action}): ${(error as Error).message}`
+        : `Error: ${(error as Error).message}`,
       attachments: [getReplyAttachment(data.id)]
     })
   }
