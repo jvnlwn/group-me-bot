@@ -1,6 +1,7 @@
 import { DateTime } from "luxon"
 import post from "../../bot/post"
 import { getReplyAttachment } from "../../lib/attachment"
+import { captureGroupMeApiError } from "../../lib/sentry"
 import { getPinnedMessages, unpinMessage } from "../../lib/message"
 import { getActivePoll, getPolls } from "../../lib/poll"
 import { ActionFn } from "../../types"
@@ -125,6 +126,14 @@ export async function createPoll({
   )
 
   if (!response.ok) {
+    captureGroupMeApiError("Failed to create poll.", {
+      endpoint: "/v3/poll/:groupId",
+      method: "POST",
+      status: response.status,
+      statusText: response.statusText,
+      groupId,
+      botId
+    })
     throw new Error("Failed to create poll.")
   }
 

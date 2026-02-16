@@ -1,3 +1,4 @@
+import { captureGroupMeApiError } from "./sentry"
 import { GroupMeGroup } from "../types"
 
 const token = process.env.GROUP_ME_API_ACCESS_TOKEN
@@ -15,6 +16,13 @@ export async function getGroup({ groupId }: { groupId: string | number }) {
   )
 
   if (!response.ok) {
+    captureGroupMeApiError("Failed get group.", {
+      endpoint: "/v3/groups/:groupId",
+      method: "GET",
+      status: response.status,
+      statusText: response.statusText,
+      groupId: String(groupId)
+    })
     throw new Error("Failed get group.")
   }
 

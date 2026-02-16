@@ -1,3 +1,4 @@
+import { captureGroupMeApiError } from "../lib/sentry"
 import { GroupMeAttachment } from "../types"
 
 type PostOptions = {
@@ -24,6 +25,13 @@ async function post({ botId, text, attachments }: PostOptions) {
   )
 
   if (response.status !== 202) {
+    captureGroupMeApiError("Failed to create bot post.", {
+      endpoint: "/v3/bots/post",
+      method: "POST",
+      status: response.status,
+      statusText: response.statusText,
+      botId
+    })
     throw new Error("Failed to create bot post.")
   }
 }

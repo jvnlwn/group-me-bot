@@ -1,5 +1,6 @@
 import { BotCallbackData, GroupMeMessage, GroupMePinnedMessage } from "../types"
 import { pollTitles } from "./poll"
+import { captureGroupMeApiError } from "./sentry"
 
 const token = process.env.GROUP_ME_API_ACCESS_TOKEN
 
@@ -19,6 +20,13 @@ export async function getPinnedMessages({
   )
 
   if (!response.ok) {
+    captureGroupMeApiError("Failed to list pinned messages.", {
+      endpoint: "/v3/pinned/groups/:groupId/messages",
+      method: "GET",
+      status: response.status,
+      statusText: response.statusText,
+      groupId: String(groupId)
+    })
     throw new Error("Failed to list pinned messages.")
   }
 
@@ -47,6 +55,14 @@ export async function pinMessage({
   )
 
   if (!response.ok) {
+    captureGroupMeApiError("Failed to pin message.", {
+      endpoint: "/v3/conversations/:groupId/messages/:messageId/pin",
+      method: "POST",
+      status: response.status,
+      statusText: response.statusText,
+      groupId: String(groupId),
+      messageId
+    })
     throw new Error("Failed to pin message.")
   }
 }
@@ -69,6 +85,14 @@ export async function unpinMessage({
   )
 
   if (!response.ok) {
+    captureGroupMeApiError("Failed to unpin message.", {
+      endpoint: "/v3/conversations/:groupId/messages/:messageId/unpin",
+      method: "POST",
+      status: response.status,
+      statusText: response.statusText,
+      groupId: String(groupId),
+      messageId
+    })
     throw new Error("Failed to unpin message.")
   }
 }
@@ -158,6 +182,13 @@ export async function getMessages({
   })
 
   if (!response.ok) {
+    captureGroupMeApiError("Failed to get messages.", {
+      endpoint: "/v3/groups/:groupId/messages",
+      method: "GET",
+      status: response.status,
+      statusText: response.statusText,
+      groupId
+    })
     throw new Error("Failed to get messages.")
   }
 

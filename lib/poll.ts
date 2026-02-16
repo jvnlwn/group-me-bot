@@ -1,5 +1,6 @@
 import { GroupMePoll } from "../types"
 import { getGroup } from "./group"
+import { captureGroupMeApiError } from "./sentry"
 
 // There are currently two disctinct soccer emojis used in
 // soccer poll subjects. There may be no visiual difference,
@@ -20,6 +21,13 @@ export async function getPolls({ groupId }: { groupId: string | number }) {
   )
 
   if (!response.ok) {
+    captureGroupMeApiError("Failed to list polls.", {
+      endpoint: "/v3/poll/:groupId",
+      method: "GET",
+      status: response.status,
+      statusText: response.statusText,
+      groupId: String(groupId)
+    })
     throw new Error("Failed to list polls.")
   }
 

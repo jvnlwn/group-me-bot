@@ -1,3 +1,4 @@
+import { captureGroupMeApiError } from "../../lib/sentry"
 import { getActivePoll, getPolls } from "../../lib/poll"
 import { ActionFn } from "../../types"
 
@@ -24,6 +25,14 @@ const action: ActionFn = async ({ group_id: groupId }) => {
   )
 
   if (!response.ok) {
+    captureGroupMeApiError("Failed to end poll.", {
+      endpoint: "/v3/poll/:groupId/:pollId/end",
+      method: "POST",
+      status: response.status,
+      statusText: response.statusText,
+      groupId,
+      pollId
+    })
     throw new Error("Failed to end poll.")
   }
 
