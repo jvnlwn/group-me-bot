@@ -1,6 +1,7 @@
 import { VercelRequest, VercelResponse } from "@vercel/node"
 import { createPoll } from "../../../actions/poll/action"
 import post from "../../../bot/post"
+import { captureApiError } from "../../../lib/sentry"
 import { getGroupAndBotId } from "../../../lib/schema"
 import { BotCallbackData } from "../../../types"
 
@@ -27,6 +28,7 @@ export default async function handler(
       retry: true
     })
   } catch (error) {
+    captureApiError(error, { endpoint: "retry_poll", groupId })
     const message = (error as Error).message
     await post({
       botId,

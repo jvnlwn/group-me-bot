@@ -8,6 +8,13 @@
 - Go to https://dev.groupme.com/applications/new
 - Set `GROUP_ME_API_ACCESS_TOKEN`
 
+## Sentry (Error Logging)
+
+- Create a project at https://sentry.io and copy the DSN.
+- Set `SENTRY_DSN` in your Vercel project environment variables (or `.env` for local).
+- API errors are reported to Sentry automatically. Expected/ignored errors (e.g. "No players to nudge.") are not sent.
+- To verify: trigger an unexpected error in an API handler and confirm the event appears in your Sentry dashboard.
+
 ## Bots
 
 ### Create a bot

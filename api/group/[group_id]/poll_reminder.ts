@@ -2,6 +2,7 @@ import { VercelRequest, VercelResponse } from "@vercel/node"
 import { check } from "../../../actions/check/action"
 import { nudge } from "../../../actions/nudge/action"
 import post from "../../../bot/post"
+import { captureApiError } from "../../../lib/sentry"
 import { getGroupAndBotId } from "../../../lib/schema"
 import { BotCallbackData } from "../../../types"
 
@@ -42,8 +43,9 @@ export default async function handler(
 
     const message = (error as Error).message
 
-    // Only send an error message if it's not "No players to nudge"
+    // Only report to Sentry and send bot message for unexpected errors.
     if (!ignoredErrors.includes(message)) {
+      captureApiError(error, { endpoint: "poll_reminder", groupId })
       await post({
         botId,
         text: `Error: ${message}`

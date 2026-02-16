@@ -16,6 +16,7 @@ import {
   unpinPollMessage
 } from "../../../lib/message"
 import { getExpiredPoll, getPolls } from "../../../lib/poll"
+import { captureApiError } from "../../../lib/sentry"
 import { getGroupAndBotId } from "../../../lib/schema"
 import { BotCallbackData } from "../../../types"
 
@@ -105,6 +106,13 @@ export default async function handler(
       }
     }
   } catch (error) {
+    captureApiError(error, {
+      endpoint: "bot_callback",
+      groupId,
+      action: data.text?.startsWith("/")
+        ? data.text.match(/\/(?<action>\w+)/)?.groups?.action
+        : undefined
+    })
     await post({
       botId,
       text: `Error: ${(error as Error).message}`,
