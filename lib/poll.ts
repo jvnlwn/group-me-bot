@@ -1,4 +1,4 @@
-import { GroupMePoll } from "../types"
+import { GroupMeGroup, GroupMePoll, GroupMeUser } from "../types"
 import { getGroup } from "./group"
 import { captureGroupMeApiError } from "./sentry"
 
@@ -60,16 +60,25 @@ export function getExpiredPoll({ polls }: { polls: GroupMePoll[] }) {
 }
 
 // Util for getting a list of users who have not yet responded to a poll in a groupme group.
+// Accepts optional preloaded group/polls to avoid redundant fetches when composing with other utils.
 export async function getNonPolledUsers({
-  groupId
+  groupId,
+  group: groupOpt,
+  polls: pollsOpt
 }: {
   groupId: string | number
+  group?: GroupMeGroup
+  polls?: GroupMePoll[]
 }) {
-  const [activePoll, group] = await Promise.all([
-    getActivePoll({ polls: await getPolls({ groupId }) }),
-    getGroup({ groupId })
-  ])
+  const [polls, group] =
+    pollsOpt !== undefined && groupOpt !== undefined
+      ? [pollsOpt, groupOpt]
+      : await Promise.all([
+          pollsOpt ?? getPolls({ groupId }),
+          groupOpt ?? getGroup({ groupId })
+        ])
 
+  const activePoll = getActivePoll({ polls })
   if (!activePoll) {
     throw new Error("No active poll found.")
   }
@@ -95,20 +104,30 @@ type MemberVoteMap = Record<
   )[] // "yes" vote
 >
 
+// Accepts optional preloaded polls/nonPolledUsers to avoid redundant fetches when composing with other utils.
 export async function getMemberVote({
-  groupId
+  groupId,
+  polls: pollsOpt,
+  nonPolledUsers: nonPolledUsersOpt
 }: {
   groupId: string | number
+  polls?: GroupMePoll[]
+  nonPolledUsers?: GroupMeUser[]
 }): Promise<MemberVoteMap> {
-  //
+  let polls = pollsOpt
+  let nonPolledUsers = nonPolledUsersOpt
 
-  const [polls, group] = await Promise.all([
-    getPolls({ groupId }),
-    getGroup({ groupId })
-  ])
-  const activePoll = polls.find(
-    (poll) => poll.status === "active" && pollTitles.includes(poll.subject?.[0])
-  )
+  if (nonPolledUsers === undefined) {
+    const [p, g] = await Promise.all([
+      polls ?? getPolls({ groupId }),
+      getGroup({ groupId })
+    ])
+    polls = p
+    nonPolledUsers = await getNonPolledUsers({ groupId, group: g, polls })
+  } else if (polls === undefined) {
+    polls = await getPolls({ groupId })
+  }
+
   // Only taking a sample, that of the last 12 expired polls.
   // The more recent the data, the more relevant it is.
   const latestExpiredPolls = polls
@@ -117,14 +136,6 @@ export async function getMemberVote({
         poll.status !== "active" && pollTitles.includes(poll.subject?.[0])
     )
     .slice(0, 12)
-
-  // TODO: don't run an extra query...
-  // Only calculate for non-polled users.
-  // We should probably instead get a separate member vote map for the active poll,
-  // then use that to filter out the polled users from the expired polls.
-  // This is because we only care about the likelihood of the non-polled users
-  // voting in the active poll.
-  const nonPolledUsers = await getNonPolledUsers({ groupId })
 
   // Create a map of members to their votes in the last 12 expired polls.
   const memberVoteMap = latestExpiredPolls.reduce<MemberVoteMap>(

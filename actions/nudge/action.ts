@@ -6,10 +6,12 @@ import {
   getAtMentionsAttachment,
   getReplyAttachment
 } from "../../lib/attachment"
+import { getGroup } from "../../lib/group"
 import {
   computeWeightedYesLikelihood,
   getMemberVote,
-  getNonPolledUsers
+  getNonPolledUsers,
+  getPolls
 } from "../../lib/poll"
 import { ActionFn, GroupMeAttachment, GroupMeUser } from "../../types"
 
@@ -38,10 +40,20 @@ export async function nudge({
   // a "mentions" attachment. We could handle this case differently if we wanted,
   // like to have fun with the user who nudged since the user they are trying to
   // /nudge has already been nudged (AI response?).
+  const [group, polls] = await Promise.all([
+    getGroup({ groupId }),
+    getPolls({ groupId })
+  ])
   const nonPolledUsers = await getNonPolledUsers({
-    groupId
+    groupId,
+    group,
+    polls
   })
-  const memberVoteMap = await getMemberVote({ groupId })
+  const memberVoteMap = await getMemberVote({
+    groupId,
+    polls,
+    nonPolledUsers
+  })
   // Get the weighted yes likelihood for each user.
   const weightedYesLikelihood = computeWeightedYesLikelihood(memberVoteMap)
   // Sort the non-polled users by their weighted yes likelihood.
