@@ -1,9 +1,8 @@
 import { VercelRequest, VercelResponse } from "@vercel/node"
 import { check } from "../../../actions/check/action"
 import { nudge } from "../../../actions/nudge/action"
-import post from "../../../bot/post"
-import { captureApiError } from "../../../lib/sentry"
 import { getGroupAndBotId } from "../../../lib/schema"
+import { captureApiError } from "../../../lib/sentry"
 import { BotCallbackData } from "../../../types"
 
 // The callback URL which GroupMe will call when a user sends a message to the chat
@@ -46,10 +45,6 @@ export default async function handler(
     // Only report to Sentry and send bot message for unexpected errors.
     if (!ignoredErrors.includes(message)) {
       captureApiError(error, { endpoint: "poll_reminder", groupId })
-      await post({
-        botId,
-        text: `Error: ${message}`
-      })
     } else {
       res.status(200).json({ message })
     }
