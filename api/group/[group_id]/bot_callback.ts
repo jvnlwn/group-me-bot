@@ -20,7 +20,18 @@ import { getGroupAndBotId } from "../../../lib/schema"
 import { captureApiError } from "../../../lib/sentry"
 import { BotCallbackData } from "../../../types"
 
-const actions = { nudge, poll, end_poll, skip, retry, check, offset }
+const actions = {
+  nudge,
+  poll,
+  end_poll,
+  skip,
+  retry,
+  check,
+  offset,
+  // Alternate syntax for the offset action.
+  "+": offset,
+  "-": offset
+}
 
 // The callback URL which GroupMe will call when a user sends a message to the chat
 // which the bot is in.
@@ -64,7 +75,7 @@ export default async function handler(
       // Probably an issue on my end.
       // const action = (await import(`../actions${data.text}/action`)).default
 
-      const actionRe = /\/(?<action>\w+)/
+      const actionRe = /\/(?<action>(\w+|\-|\+))/
       const actionKey = data.text.match(actionRe)?.groups
         ?.action as keyof typeof actions
       const action = actions[actionKey]

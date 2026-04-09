@@ -35,7 +35,8 @@ export async function getPollResultsText(poll: GroupMePoll) {
 }
 
 async function getPollOffset(poll: GroupMePoll) {
-  const titleRe = /^\/offset *(?<offsetOperand>\+|\-)?(?<offsetValue>\d+)/
+  const titleRe =
+    /^\/(offset *)?(?<offsetOperand>\+|\-)?((?<offsetValue>\d+)|(?<offsetString>.+))/
 
   const messages = await getMessages({
     groupId: poll.conversation_id,
@@ -59,9 +60,26 @@ async function getPollOffset(poll: GroupMePoll) {
     const { text } = message
     const match = text?.match(titleRe)
     if (match?.groups) {
-      const { offsetOperand, offsetValue } = match.groups
-      const offsetAmount =
-        parseInt(offsetValue, 10) * (offsetOperand === "-" ? -1 : 1)
+      const { offsetOperand, offsetValue, offsetString } = match.groups
+      let offsetAmount = 0
+
+      // We handle the literal offset value or the more flexible offset string.
+      if (offsetValue) {
+        offsetAmount = parseInt(offsetValue, 10)
+      } else if (offsetString) {
+        // Note: this regex is very basic. It will not capture complete names, just the last word
+        // in each name separated by a comma or "and", an example being "John Doe, Jane Doe and Jim Doe".
+        const offsetStringRe = /\w+(?= *(,|and|&|$))/g
+        const match = offsetString.match(offsetStringRe)
+        if (match) {
+          offsetAmount = match.length
+        }
+      }
+
+      // Apply the offset operand.
+      offsetAmount *= offsetOperand ? 1 : -1
+
+      // Offset the accumulator by the offset amount.
       acc += offsetAmount
     }
     return acc
