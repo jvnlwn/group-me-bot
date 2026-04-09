@@ -77,7 +77,7 @@ async function getPollOffset(poll: GroupMePoll) {
       }
 
       // Apply the offset operand.
-      offsetAmount *= offsetOperand ? 1 : -1
+      offsetAmount *= offsetOperand === "-" ? -1 : 1
 
       // Offset the accumulator by the offset amount.
       acc += offsetAmount
