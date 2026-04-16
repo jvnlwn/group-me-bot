@@ -35,8 +35,12 @@ export async function getPollResultsText(poll: GroupMePoll) {
 }
 
 async function getPollOffset(poll: GroupMePoll) {
-  const titleRe =
-    /^\/(offset *)?(?<offsetOperand>\+|\-)?((?<offsetValue>\d+)|(?<offsetString>.+))/
+  const offsetRes = [
+    // /offset with optional operand
+    /^\/offset *(?<offsetOperand>\+|\-)?((?<offsetValue>\d+)|(?<offsetString>.+))/,
+    // /(-|+), requiring the operand
+    /^\/(?<offsetOperand>\+|\-)((?<offsetValue>\d+)|(?<offsetString>.+))/
+  ]
 
   const messages = await getMessages({
     groupId: poll.conversation_id,
@@ -57,8 +61,14 @@ async function getPollOffset(poll: GroupMePoll) {
 
   // Reduce messages to get total offset amount.
   const totalOffset = relevantMessages.reduce<number>((acc, message) => {
-    const { text } = message
-    const match = text?.match(titleRe)
+    const text = message.text || ""
+    const match = offsetRes.reduce(
+      (match, re) => {
+        return match || text.match(re)
+      },
+      null as RegExpMatchArray | null
+    )
+
     if (match?.groups) {
       const { offsetOperand, offsetValue, offsetString } = match.groups
       let offsetAmount = 0
