@@ -1,6 +1,6 @@
-import { readdirSync, readFileSync } from "fs"
+// import { readdirSync, readFileSync } from "fs"
 import OpenAI from "openai"
-import { join } from "path"
+// import { join } from "path"
 import post from "../../bot/post"
 import {
   getAtMentionsAttachment,
@@ -84,26 +84,26 @@ export async function nudge({
 
   // Get the total number of instructions-*.md files and choose
   // a random number between 0 and the total number of files
-  const dir = readdirSync(join(__dirname))
-  const totalInstructions = dir.filter(
-    (file) => file.startsWith("instructions-") && file.endsWith(".md")
-  ).length
-  const randomInstructionsIndex = Math.floor(Math.random() * totalInstructions)
-  const mdPath = join(
-    __dirname,
-    `instructions-${randomInstructionsIndex + 1}.md`
-  )
-  const instructions = readFileSync(mdPath, "utf-8")
+  // const dir = readdirSync(join(__dirname))
+  // const totalInstructions = dir.filter(
+  //   (file) => file.startsWith("instructions-") && file.endsWith(".md")
+  // ).length
+  // const randomInstructionsIndex = Math.floor(Math.random() * totalInstructions)
+  // const mdPath = join(
+  //   __dirname,
+  //   `instructions-${randomInstructionsIndex + 1}.md`
+  // )
+  // const instructions = readFileSync(mdPath, "utf-8")
   const atMentions = nicknames.map((nickname) => `@${nickname}`).join(", ")
-  const input = `Nudge: ${atMentions}`
+  // const input = `Nudge: ${atMentions}`
 
-  const response = await client.responses.create({
-    // model: "gpt-4o-mini",
-    model: "gpt-4o",
-    instructions,
-    input,
-    top_p: 0.5
-  })
+  // const response = await client.responses.create({
+  //   // model: "gpt-4o-mini",
+  //   model: "gpt-4o",
+  //   instructions,
+  //   input,
+  //   top_p: 0.5
+  // })
 
   const attachments: GroupMeAttachment[] = [
     getAtMentionsAttachment({
@@ -118,7 +118,7 @@ export async function nudge({
 
   await post({
     botId,
-    text: response.output_text,
+    text: nicknames.join(", "),
     attachments
   })
 }
