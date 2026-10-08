@@ -18,7 +18,10 @@ export async function skip({
   groupId: string
   messageId?: string
 }) {
-  const activePoll = await getActivePoll({ polls: await getPolls({ groupId }) })
+  const activePoll = await getActivePoll({
+    groupId,
+    polls: (await getPolls({ groupId })).polls
+  })
 
   if (activePoll) {
     throw new Error("An active poll already exists.")

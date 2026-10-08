@@ -40,10 +40,11 @@ export async function nudge({
   // a "mentions" attachment. We could handle this case differently if we wanted,
   // like to have fun with the user who nudged since the user they are trying to
   // /nudge has already been nudged (AI response?).
-  const [group, polls] = await Promise.all([
+  const [group, pollsData] = await Promise.all([
     getGroup({ groupId }),
     getPolls({ groupId })
   ])
+  const polls = pollsData.polls
   const nonPolledUsers = await getNonPolledUsers({
     groupId,
     group,

@@ -113,7 +113,10 @@ export async function check({
   groupId: string
   messageId?: string
 }) {
-  const activePoll = await getActivePoll({ polls: await getPolls({ groupId }) })
+  const activePoll = await getActivePoll({
+    groupId,
+    polls: (await getPolls({ groupId })).polls
+  })
 
   if (!activePoll) {
     throw new Error("No active poll found.")

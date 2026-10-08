@@ -1,4 +1,5 @@
 import { VercelRequest, VercelResponse } from "@vercel/node"
+import celebrate from "../../../actions/celebrate/action"
 import check, { getPollResultsText } from "../../../actions/check/action"
 import end_poll from "../../../actions/end_poll/action"
 import nudge from "../../../actions/nudge/action"
@@ -28,6 +29,7 @@ const actions = {
   retry,
   check,
   offset,
+  celebrate,
   // Alternate syntax for the offset action.
   "+": offset,
   "-": offset
@@ -110,7 +112,7 @@ export default async function handler(
           post({
             botId,
             text: `Final Poll Results: ${await getPollResultsText(
-              getExpiredPoll({ polls: await getPolls({ groupId }) })
+              getExpiredPoll(await getPolls({ groupId }))
             )}`
           })
         ])

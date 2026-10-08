@@ -1,12 +1,15 @@
-import { captureGroupMeApiError } from "../../lib/sentry"
 import { getActivePoll, getPolls } from "../../lib/poll"
+import { captureGroupMeApiError } from "../../lib/sentry"
 import { ActionFn } from "../../types"
 
 // Util for ending an active poll in a groupme group.
 const action: ActionFn = async ({ group_id: groupId }) => {
   const token = process.env.GROUP_ME_API_ACCESS_TOKEN
 
-  const activePoll = await getActivePoll({ polls: await getPolls({ groupId }) })
+  const activePoll = await getActivePoll({
+    groupId,
+    polls: (await getPolls({ groupId })).polls
+  })
 
   if (!activePoll) {
     throw new Error("No active poll found.")

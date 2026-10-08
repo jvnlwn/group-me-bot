@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/node"
+import microdiff from "microdiff"
 import { GroupMeGroup, GroupMePoll, GroupMeUser } from "../types"
 import { getGroup } from "./group"
 import { captureGroupMeApiError } from "./sentry"
@@ -9,16 +11,68 @@ export const pollTitles = ["⚽️", "⚽"]
 
 const token = process.env.GROUP_ME_API_ACCESS_TOKEN
 
-export async function getPolls({ groupId }: { groupId: string | number }) {
-  const response = await fetch(
-    `https://api.groupme.com/v3/poll/${groupId}?token=${token}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json"
-      }
+export async function getPoll({
+  groupId,
+  pollId
+}: {
+  groupId: string | number
+  pollId: string
+}): Promise<GroupMePoll> {
+  let url = `https://api.groupme.com/v3/poll/${groupId}/${pollId}?token=${token}`
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json"
     }
-  )
+  })
+
+  if (!response.ok) {
+    captureGroupMeApiError("Failed to get poll.", {
+      endpoint: "/v3/poll/:groupId/:pollId",
+      method: "GET",
+      status: response.status,
+      statusText: response.statusText,
+      groupId: String(groupId),
+      pollId: String(pollId)
+    })
+
+    throw new Error("Failed to get poll.")
+  }
+
+  const { response: data } = (await response.json()) as {
+    response: {
+      // For some reason querying the poll directly has user_votes as sibling of poll, not in poll.
+      poll: { data: Omit<GroupMePoll, "user_votes">; user_votes?: string[] }
+    }
+  }
+
+  return {
+    ...data.poll.data,
+    user_votes: data.poll.user_votes ?? []
+  }
+}
+
+export async function getPolls({
+  groupId,
+  continuationToken
+}: {
+  groupId: string | number
+  continuationToken?: string
+}) {
+  // Polls paginate by 10 by default and no documentation specifies increases this limit.
+  let url = `https://api.groupme.com/v3/poll/${groupId}?token=${token}&per_page=100`
+
+  if (continuationToken) {
+    url += `&continuation_token=${continuationToken}`
+  }
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json"
+    }
+  })
 
   if (!response.ok) {
     captureGroupMeApiError("Failed to list polls.", {
@@ -28,22 +82,92 @@ export async function getPolls({ groupId }: { groupId: string | number }) {
       statusText: response.statusText,
       groupId: String(groupId)
     })
+
     throw new Error("Failed to list polls.")
   }
 
   const { response: data } = (await response.json()) as {
-    response: { polls: { data: GroupMePoll }[] }
+    response: {
+      polls: { data: GroupMePoll; user_votes: string[] }[]
+      continuation_token: string | null
+    }
   }
 
-  return data.polls.map((poll) => poll.data)
+  return {
+    polls: data.polls.map((poll) => poll.data),
+    continuationToken: data.continuation_token
+  }
 }
 
-export function getActivePoll({ polls }: { polls: GroupMePoll[] }) {
+export async function getAllPolls({
+  groupId,
+  fromDate
+}: {
+  groupId: string | number
+  fromDate?: Date
+}) {
+  const polls: GroupMePoll[] = []
+  let continuationToken: string | undefined
+  // A necessary hack to avoid infinite loops, since somehow the continuation tokens cycle, as if we paginate through a loop.
+  // So, if we've seen the same continuation token twice, we can stop.
+  let initialContinuationToken: string | undefined
+
+  do {
+    const result = await getPolls({
+      groupId,
+      continuationToken
+    })
+
+    let pollsToAdd = result.polls
+    // If a fromDate is provided, filter out polls before that date.
+    // Stop pagination early if we've reached the fromDate.
+    if (fromDate) {
+      pollsToAdd = pollsToAdd.filter(
+        (poll) => new Date(poll.created_at * 1000) > fromDate
+      )
+    }
+
+    polls.push(...pollsToAdd)
+
+    const reachedFromDate = result.polls.length !== pollsToAdd.length
+    if (reachedFromDate) break
+
+    const nextContinuationToken = result.continuationToken ?? undefined
+    continuationToken =
+      nextContinuationToken === initialContinuationToken
+        ? undefined
+        : nextContinuationToken
+    initialContinuationToken ??= nextContinuationToken
+  } while (continuationToken)
+
+  return polls
+}
+
+export async function getActivePoll({
+  groupId,
+  polls
+}: {
+  groupId: string | number
+  polls: GroupMePoll[]
+}) {
   const activePoll = polls.find(
     (poll) => poll.status === "active" && pollTitles.includes(poll.subject?.[0])
   )
 
-  return activePoll
+  if (!activePoll) return
+
+  const poll = await getPoll({ groupId, pollId: activePoll.id })
+
+  const diff = microdiff(activePoll.options, poll.options)
+
+  if (diff.length) {
+    Sentry.withScope((scope) => {
+      scope.setTag("diff", JSON.stringify(diff))
+      Sentry.captureException("Same poll in Polls list and Poll differ.")
+    })
+  }
+
+  return poll
 }
 
 // Get's most recenty expired poll.
@@ -74,11 +198,11 @@ export async function getNonPolledUsers({
     pollsOpt !== undefined && groupOpt !== undefined
       ? [pollsOpt, groupOpt]
       : await Promise.all([
-          pollsOpt ?? getPolls({ groupId }),
+          pollsOpt ?? (await getPolls({ groupId })).polls,
           groupOpt ?? getGroup({ groupId })
         ])
 
-  const activePoll = getActivePoll({ polls })
+  const activePoll = await getActivePoll({ groupId, polls })
   if (!activePoll) {
     throw new Error("No active poll found.")
   }
@@ -119,13 +243,13 @@ export async function getMemberVote({
 
   if (nonPolledUsers === undefined) {
     const [p, g] = await Promise.all([
-      polls ?? getPolls({ groupId }),
+      polls ?? (await getPolls({ groupId })).polls,
       getGroup({ groupId })
     ])
     polls = p
     nonPolledUsers = await getNonPolledUsers({ groupId, group: g, polls })
   } else if (polls === undefined) {
-    polls = await getPolls({ groupId })
+    polls = (await getPolls({ groupId })).polls
   }
 
   // Only taking a sample, that of the last 12 expired polls.

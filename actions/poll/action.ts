@@ -1,10 +1,11 @@
 import { DateTime } from "luxon"
 import post from "../../bot/post"
 import { getReplyAttachment } from "../../lib/attachment"
-import { captureGroupMeApiError } from "../../lib/sentry"
 import { getPinnedMessages, unpinMessage } from "../../lib/message"
 import { getActivePoll, getPolls } from "../../lib/poll"
+import { captureGroupMeApiError } from "../../lib/sentry"
 import { ActionFn } from "../../types"
+import { celebrate } from "../celebrate/action"
 
 // Util for creating a poll in a groupme group.
 // The poll is hardcoded to ask if people are coming tomorrow for soccer,
@@ -24,7 +25,10 @@ export async function createPoll({
 }) {
   const token = process.env.GROUP_ME_API_ACCESS_TOKEN
 
-  const activePoll = await getActivePoll({ polls: await getPolls({ groupId }) })
+  const activePoll = await getActivePoll({
+    groupId,
+    polls: (await getPolls({ groupId })).polls
+  })
 
   if (activePoll) {
     throw new Error("An active poll already exists.")
@@ -136,6 +140,9 @@ export async function createPoll({
     })
     throw new Error("Failed to create poll.")
   }
+
+  // Now, celebrate any members with anniversaries.
+  await celebrate({ botId, groupId })
 
   const data = await response.json()
   return data

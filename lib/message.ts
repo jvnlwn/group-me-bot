@@ -1,4 +1,4 @@
-import { BotCallbackData, GroupMeMessage, GroupMePinnedMessage } from "../types"
+import { BotCallbackData, GroupMeMessage } from "../types"
 import { pollTitles } from "./poll"
 import { captureGroupMeApiError } from "./sentry"
 
@@ -31,7 +31,7 @@ export async function getPinnedMessages({
   }
 
   const { response: data } = (await response.json()) as {
-    response: { messages: GroupMePinnedMessage[]; count: number }
+    response: { messages: GroupMeMessage[]; count: number }
   }
 
   return data
@@ -197,4 +197,48 @@ export async function getMessages({
   }
 
   return data.messages
+}
+
+export async function getAllMessages({
+  groupId,
+  limit = 100
+}: {
+  groupId: string
+  limit?: number
+}): Promise<GroupMeMessage[]> {
+  const messages: GroupMeMessage[] = []
+  let beforeId: string | undefined
+
+  while (true) {
+    const page = await getMessages({
+      groupId,
+      limit,
+      ...(beforeId ? { beforeId } : {})
+    })
+
+    if (page.length === 0) {
+      break
+    }
+
+    messages.push(...page)
+
+    // before_id returns messages in descending order,
+    // so the last item is the oldest message in this page.
+    const nextBeforeId = page[page.length - 1]?.id
+
+    if (!nextBeforeId || nextBeforeId === beforeId) {
+      break
+    }
+
+    beforeId = nextBeforeId
+
+    // A short page means we've reached the beginning.
+    if (page.length < limit) {
+      break
+    }
+  }
+
+  // Since pages were fetched newest -> oldest, reverse them
+  // so the returned array is oldest -> newest.
+  return messages.reverse()
 }
