@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "api/*.ts": {
-      "runtime": "@vercel/node@5.1.14",
+      "runtime": "@vercel/node@17.0.0",
       "includeFiles": "actions/**"
     }
   }

@@ -17,8 +17,9 @@
   },
   "dependencies": {
     "@sentry/node": "^10.39.0",
-    "@vercel/node": "^5.1.14",
+    "@vercel/node": "17.0.0",
     "luxon": "^3.6.1",
+    "microdiff": "^1.6.0",
     "openai": "^4.96.0",
     "zod": "^3.24.3"
   }
