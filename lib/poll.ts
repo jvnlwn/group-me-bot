@@ -132,6 +132,9 @@ export async function getAllPolls({
     const reachedFromDate = result.polls.length !== pollsToAdd.length
     if (reachedFromDate) break
 
+    // NOTE: pagination appears to be broken in that the second page comes back with
+    // the same continuation token as the first page. We know this is happening at some point
+    // hence the check below, but on the second page is earliar than previously observed.
     const nextContinuationToken = result.continuationToken ?? undefined
     continuationToken =
       nextContinuationToken === initialContinuationToken
@@ -143,6 +146,10 @@ export async function getAllPolls({
   return polls
 }
 
+export function getPollIsSoccer(poll: GroupMePoll) {
+  return pollTitles.includes(poll.subject?.[0])
+}
+
 export async function getActivePoll({
   groupId,
   polls
@@ -151,7 +158,7 @@ export async function getActivePoll({
   polls: GroupMePoll[]
 }) {
   const activePoll = polls.find(
-    (poll) => poll.status === "active" && pollTitles.includes(poll.subject?.[0])
+    (poll) => poll.status === "active" && getPollIsSoccer(poll)
   )
 
   if (!activePoll) return
@@ -173,9 +180,7 @@ export async function getActivePoll({
 // Get's most recenty expired poll.
 export function getExpiredPoll({ polls }: { polls: GroupMePoll[] }) {
   const expiredPoll = polls
-    .filter(
-      (poll) => poll.status === "past" && pollTitles.includes(poll.subject?.[0])
-    )
+    .filter((poll) => poll.status === "past" && getPollIsSoccer(poll))
     .sort((a, b) => {
       return b.expiration - a.expiration
     })[0]
@@ -255,10 +260,7 @@ export async function getMemberVote({
   // Only taking a sample, that of the last 12 expired polls.
   // The more recent the data, the more relevant it is.
   const latestExpiredPolls = polls
-    .filter(
-      (poll) =>
-        poll.status !== "active" && pollTitles.includes(poll.subject?.[0])
-    )
+    .filter((poll) => poll.status !== "active" && getPollIsSoccer(poll))
     .slice(0, 12)
 
   // Create a map of members to their votes in the last 12 expired polls.

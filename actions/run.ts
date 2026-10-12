@@ -16,8 +16,4 @@ async function run() {
 
 run()
 
-// Example:
-// GROUP_ME_API_ACCESS_TOKEN=f12b62f03ad9013fe1bf52405d16c202 npx tsx actions/run.js celebrate a325775515f6b6edb0c14ad29b 107215974
-// GROUP_ME_API_ACCESS_TOKEN=f12b62f03ad9013fe1bf52405d16c202 npx tsx actions/run.js celebrate 87d35d9fa0f428049f8d990150 88389561
-
 export {}

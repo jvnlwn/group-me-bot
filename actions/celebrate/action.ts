@@ -1,8 +1,9 @@
+import * as Sentry from "@sentry/node"
 import post from "../../bot/post"
 import { getAtMentionsAttachment } from "../../lib/attachment"
 import { getGroup } from "../../lib/group"
 import { getAllMessages } from "../../lib/message"
-import { getAllPolls } from "../../lib/poll"
+import { getAllPolls, getPollIsSoccer } from "../../lib/poll"
 import {
   ActionFn,
   GroupMeAttachment,
@@ -97,7 +98,10 @@ export async function celebrate({
   yearAgoDate.setFullYear(new Date().getFullYear() - 1)
 
   const group = await getGroup({ groupId })
-  const polls = await getAllPolls({ groupId, fromDate: yearAgoDate })
+  const allPolls = await getAllPolls({ groupId, fromDate: yearAgoDate })
+  const polls = allPolls.filter(
+    (poll) => poll.status !== "active" && getPollIsSoccer(poll)
+  )
 
   const members = [...group.members]
   const membershipJoinedDates = await _getMemberJoinedDates(group)
@@ -136,10 +140,7 @@ export async function celebrate({
       return pollDate > anniversaryDate
     })
 
-    // Note: on initial launch, matching 1 OR 2 to include Ethan this go.
-    return (
-      pollsPastAnniversary.length === 1 || pollsPastAnniversary.length === 2
-    )
+    return pollsPastAnniversary.length === 1
   })
 
   // Assemble member stats for each member.
@@ -151,7 +152,7 @@ export async function celebrate({
       const option = poll.options.find(
         (option) =>
           option.title.toLowerCase() === "yes" &&
-          option.voter_ids.includes(member.user_id)
+          option.voter_ids?.includes(member.user_id)
       )
       if (option) {
         currentYesStreak++
@@ -188,9 +189,15 @@ export async function celebrate({
   )
 
   const text = memberStats.reduce((acc, stats) => {
-    let text = `🎉⚽️🎉 Happy ${ordinal(stats.years)} anniversary, ${stats.member.nickname}! A recap of your year:\nVoted "Yes" ${stats.yesCount}x (${Math.round(stats.yesPerc * 100)}%) with a ${stats.yesStreak}x streak.`
+    let text = `🎉⚽️🎉 Happy ${ordinal(stats.years)} anniversary, @${stats.member.nickname}! A recap of your year:\nVoted "Yes" ${stats.yesCount}x (${Math.round(stats.yesPerc * 100)}%) with a ${stats.yesStreak}x streak.`
     return acc ? `${acc}\n\n${text}` : text
   }, "")
+
+  Sentry.withScope((scope) => {
+    scope.setTag("text", text)
+    scope.setTag("polls_lenght", polls.length)
+    Sentry.captureException("Celebrate action.")
+  })
 
   await post({
     botId,
