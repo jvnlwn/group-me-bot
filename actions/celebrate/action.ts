@@ -135,7 +135,7 @@ export async function celebrate({
     anniversaryDate.setFullYear(new Date().getFullYear())
     // Polls are ordered newest to oldest, so slicing the first two is sufficient
     // since we only need to know if there's exactly one poll past the anniversary date.
-    const pollsPastAnniversary = polls.slice(0, 3).filter((poll) => {
+    const pollsPastAnniversary = polls.slice(0, 2).filter((poll) => {
       const pollDate = new Date(poll.created_at * 1000)
       return pollDate > anniversaryDate
     })
