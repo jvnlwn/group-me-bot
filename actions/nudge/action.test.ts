@@ -80,6 +80,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
@@ -135,7 +136,7 @@ describe("poetic nudges", () => {
   })
 
   test("can randomly choose haiku", async () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.9)
+    vi.spyOn(Math, "random").mockReturnValue(0.5)
     parse.mockResolvedValue(response(haikuVerses))
     await nudge(options)
     expect(JSON.parse(parse.mock.calls[0][0].input).mode).toBe("haiku")
@@ -181,9 +182,33 @@ describe("poetic nudges", () => {
     expect(captureApiError).toHaveBeenCalledTimes(1)
   })
 
+  test("posts eight players once after two slow generation attempts", async () => {
+    vi.useFakeTimers()
+    const users = Array.from({ length: 8 }, (_, i) => user(`player-${i}`, `Player ${i + 1}`))
+    vi.mocked(getNonPolledUsers).mockResolvedValue(users)
+    vi.mocked(getMemberVote).mockResolvedValue(Object.fromEntries(users.map((u) => [u.user_id, [1]])))
+    const verses = users.map(() => ["[[name]], dawn is near", "Cast your vote upon the breeze", "Boots wait by the door"])
+    parse
+      .mockImplementationOnce(() => new Promise((resolve) => setTimeout(() => resolve(response([])), 14_000)))
+      .mockImplementationOnce(() => new Promise((resolve) => setTimeout(() => resolve(response(verses)), 14_000)))
+
+    const delivery = nudge({ ...options, mode: "haiku", includePollResults: true })
+    await vi.advanceTimersByTimeAsync(14_000)
+    expect(parse).toHaveBeenCalledTimes(2)
+    expect(post).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(14_000)
+    await delivery
+
+    expect(post).toHaveBeenCalledTimes(1)
+    const sent = vi.mocked(post).mock.calls[0][0]
+    expect(sent.text).toMatch(/^Current Poll Results:/)
+    expect(sent.attachments?.[0]).toMatchObject({ user_ids: users.map((u) => u.user_id) })
+    expect(captureApiError).not.toHaveBeenCalled()
+  })
+
   test("falls back on an OpenAI error and retains results and reply", async () => {
     parse.mockRejectedValue(new Error("OpenAI unavailable"))
-    await nudge({ ...options, includePollResults: true, messageId: "command" })
+    await nudge({ ...options, mode: "rhyme", includePollResults: true, messageId: "command" })
     expect(post).toHaveBeenCalledTimes(1)
     const sent = vi.mocked(post).mock.calls[0][0]
     expect(sent.text).toContain("Current Poll Results: 8 Yes, 2 No")
@@ -203,6 +228,68 @@ describe("poetic nudges", () => {
     await expect(nudge(options)).rejects.toThrow("No players to nudge.")
     expect(parse).not.toHaveBeenCalled()
     expect(post).not.toHaveBeenCalled()
+  })
+})
+
+describe("mentions-only nudges", () => {
+  test("can randomly choose mentions without OpenAI", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.9)
+    await nudge(options)
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(post).mock.calls[0][0].text).toBe("@Sam, @May")
+    expect(parse).not.toHaveBeenCalled()
+  })
+
+  test.each(["/nudge 2 mentions", "/nudge mentions 2"])("sends one comma-separated list for %s without OpenAI", async (text) => {
+    await action(command(text))
+
+    expect(post).toHaveBeenCalledExactlyOnceWith({
+      botId: "test-bot",
+      text: "@Sam, @May",
+      attachments: [
+        { type: "mentions", loci: [[0, 4], [6, 4]], user_ids: ["sam", "may"] },
+        { type: "reply", reply_id: "command", base_reply_id: "command" }
+      ]
+    })
+    expect(parse).not.toHaveBeenCalled()
+    expect(captureApiError).not.toHaveBeenCalled()
+  })
+
+  test("defaults to one eligible player", async () => {
+    await action(command("/nudge mentions"))
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(post).mock.calls[0][0].text).toBe("@Sam")
+    expect(parse).not.toHaveBeenCalled()
+  })
+
+  test("combines results and eight mentions with exact positions for duplicate and Unicode names", async () => {
+    const users = ["Ann", "Anna", "Ann", "Zoë ⚽️", "Sam Reed", "May Blake", "李明", "Jordan King"]
+      .map((name, i) => user(`player-${i}`, name))
+    vi.mocked(getNonPolledUsers).mockResolvedValue(users)
+    vi.mocked(getMemberVote).mockResolvedValue(Object.fromEntries(users.map((u) => [u.user_id, [1]])))
+    const prefix = "⚽️ Current Poll Results: 8 Yes, 2 No"
+    vi.mocked(getCurrentPollResultsText).mockResolvedValue(prefix)
+
+    await nudge({ ...options, mode: "mentions", includePollResults: true })
+
+    expect(post).toHaveBeenCalledTimes(1)
+    const sent = vi.mocked(post).mock.calls[0][0]
+    expect(sent.text).toBe(`${prefix}\n\n${users.map((u) => `@${u.nickname}`).join(", ")}`)
+    const mentions = sent.attachments?.[0]
+    expect(mentions?.type).toBe("mentions")
+    if (mentions?.type !== "mentions") throw new Error("Missing mentions attachment")
+    expect(mentions.user_ids).toEqual(users.map((u) => u.user_id))
+    expect(mentions.loci.map(([start, length]) => sent.text.slice(start, start + length))).toEqual(users.map((u) => `@${u.nickname}`))
+    expect(new Set(mentions.loci.map(([start]) => start)).size).toBe(8)
+    expect(parse).not.toHaveBeenCalled()
+  })
+
+  test("does not split or truncate an oversized mention list", async () => {
+    const users = [user("sam", "S".repeat(1000))]
+    vi.mocked(getNonPolledUsers).mockResolvedValue(users)
+    await expect(nudge({ ...options, mode: "mentions" })).rejects.toThrow("single-message character budget")
+    expect(post).not.toHaveBeenCalled()
+    expect(parse).not.toHaveBeenCalled()
   })
 })
 
@@ -227,6 +314,20 @@ describe("scheduled poll reminders", () => {
       user_ids: ["sam", "may"],
       loci: [[sent.text.indexOf("@Sam"), 4], [sent.text.indexOf("@May"), 4]]
     })
+  })
+
+  test("can randomly post results and comma-separated mentions in one message", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.9)
+    await runHandler()
+    expect(post).toHaveBeenCalledTimes(1)
+    const sent = vi.mocked(post).mock.calls[0][0]
+    expect(sent.text).toBe("Current Poll Results: 8 Yes, 2 No\n\n@Sam, @May")
+    expect(sent.attachments?.[0]).toEqual({
+      type: "mentions",
+      user_ids: ["sam", "may"],
+      loci: [[sent.text.indexOf("@Sam"), 4], [sent.text.indexOf("@May"), 4]]
+    })
+    expect(parse).not.toHaveBeenCalled()
   })
 
   test("posts only results when everyone has voted", async () => {

@@ -1,6 +1,14 @@
 {
   "version": 2,
   "functions": {
+    "api/**/bot_callback.ts": {
+      "includeFiles": "actions/**",
+      "maxDuration": 60
+    },
+    "api/**/poll_reminder.ts": {
+      "includeFiles": "actions/**",
+      "maxDuration": 60
+    },
     "api/**/*.ts": {
       "includeFiles": "actions/**"
     }

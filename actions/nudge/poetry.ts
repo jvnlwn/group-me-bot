@@ -20,7 +20,12 @@ type Reminder = {
 
 // Assemble mentions while inserting names, so duplicate nicknames, substrings,
 // and names containing punctuation cannot accidentally mention the wrong player.
-function renderVerses(verses: string[], users: GroupMeUser[], prefix: string) {
+function renderVerses(
+  verses: string[],
+  users: GroupMeUser[],
+  prefix: string,
+  separator = "\n\n"
+) {
   const reminder: Reminder = {
     text: prefix ? `${prefix}\n\n` : "",
     mentions: { type: "mentions", loci: [], user_ids: [] }
@@ -32,7 +37,7 @@ function renderVerses(verses: string[], users: GroupMeUser[], prefix: string) {
       throw new Error("Each verse must contain exactly one name placeholder.")
     }
 
-    if (index > 0) reminder.text += "\n\n"
+    if (index > 0) reminder.text += separator
     reminder.text += parts[0]
     const mention = `@${users[index].nickname}`
     reminder.mentions.loci.push([reminder.text.length, mention.length])
@@ -44,6 +49,10 @@ function renderVerses(verses: string[], users: GroupMeUser[], prefix: string) {
     throw new Error("Reminder exceeds the single-message character budget.")
   }
   return reminder
+}
+
+export function createMentionsReminder(users: GroupMeUser[], prefix = "") {
+  return renderVerses(users.map(() => namePlaceholder), users, prefix, ", ")
 }
 
 export function createFallbackReminder(users: GroupMeUser[], prefix = "") {

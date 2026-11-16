@@ -10,21 +10,30 @@ import {
 import { captureApiError } from "../../lib/sentry"
 import { ActionFn, GroupMeAttachment, GroupMeUser } from "../../types"
 import { getCurrentPollResultsText } from "../check/action"
-import { createFallbackReminder, createPoeticReminder, PoetryMode } from "./poetry"
+import {
+  createFallbackReminder,
+  createMentionsReminder,
+  createPoeticReminder,
+  PoetryMode
+} from "./poetry"
+
+export type NudgeMode = PoetryMode | "mentions"
+
+const nudgeModes: NudgeMode[] = ["rhyme", "haiku", "mentions"]
 
 export async function nudge({
   botId,
   groupId,
   count,
   messageId,
-  mode = Math.random() < 0.5 ? "rhyme" : "haiku",
+  mode = nudgeModes[Math.floor(Math.random() * nudgeModes.length)],
   includePollResults = false
 }: {
   botId: string
   groupId: string
   count: number
   messageId?: string
-  mode?: PoetryMode
+  mode?: NudgeMode
   includePollResults?: boolean
 }) {
   // TODO: filter out already nudged users.
@@ -86,15 +95,19 @@ export async function nudge({
   }
 
   let reminder: Awaited<ReturnType<typeof createPoeticReminder>>
-  try {
-    reminder = await createPoeticReminder({ users, mode, prefix })
-  } catch (error) {
-    captureApiError(error, {
-      endpoint: "nudge",
-      groupId,
-      action: "generate_poem"
-    })
-    reminder = createFallbackReminder(users, prefix)
+  if (mode === "mentions") {
+    reminder = createMentionsReminder(users, prefix)
+  } else {
+    try {
+      reminder = await createPoeticReminder({ users, mode, prefix })
+    } catch (error) {
+      captureApiError(error, {
+        endpoint: "nudge",
+        groupId,
+        action: "generate_poem"
+      })
+      reminder = createFallbackReminder(users, prefix)
+    }
   }
 
   const attachments: GroupMeAttachment[] = [reminder.mentions]
@@ -124,7 +137,8 @@ const action: ActionFn = async ({ botId, group_id: groupId, id, text }) => {
   const args = text.trim().split(/\s+/).slice(1)
   const count = Number(args.find((arg) => /^\d+$/.test(arg)) ?? "1")
   const mode = args.find(
-    (arg): arg is PoetryMode => arg === "rhyme" || arg === "haiku"
+    (arg): arg is NudgeMode =>
+      arg === "rhyme" || arg === "haiku" || arg === "mentions"
   )
 
   await nudge({
