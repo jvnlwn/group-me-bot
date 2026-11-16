@@ -37,9 +37,9 @@ export async function getPollResultsText(poll: GroupMePoll) {
 export function getOffsetAmount(text: string) {
   const offsetRes = [
     // /offset with optional operand
-    /^\/offset *(?<offsetOperand>\+|\-)?((?<offsetValue>\d+)|(?<offsetString>.+))/,
+    /^\/offset\b\s*(?<offsetOperand>\+|\-)?\s*((?<offsetValue>\d+)|(?<offsetString>.+))/,
     // /(-|+), requiring the operand
-    /^\/(?<offsetOperand>\+|\-)((?<offsetValue>\d+)|(?<offsetString>.+))/
+    /^\/(?<offsetOperand>\+|\-)\s*((?<offsetValue>\d+)|(?<offsetString>.+))/
   ]
 
   const match = offsetRes.reduce(
@@ -57,19 +57,17 @@ export function getOffsetAmount(text: string) {
     if (offsetValue) {
       offsetAmount = parseInt(offsetValue, 10)
     } else if (offsetString) {
-      // Note: this regex is very basic. It will not capture complete names, just the last word
-      // in each name separated by a comma or "and", an example being "John Doe, Jane Doe and Jim Doe".
-      const offsetStringRe = /\w+(?= *(,|and|&|$))/g
-      const match = offsetString.match(offsetStringRe)
-      if (match) {
-        offsetAmount = match.length
-      }
+      // Count name entries rather than their last words, so punctuation and
+      // Unicode names work and "and" inside a name is not a separator.
+      offsetAmount = offsetString
+        .split(/,|&|\band\b/i)
+        .filter((name) => /[\p{L}\p{N}]/u.test(name)).length
     }
 
     // Apply the offset operand.
-    offsetAmount *= offsetOperand === "-" ? -1 : 1
-
-    return offsetAmount
+    return offsetOperand === "-" && offsetAmount > 0
+      ? -offsetAmount
+      : offsetAmount
   }
 
   return 0

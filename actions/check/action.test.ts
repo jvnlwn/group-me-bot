@@ -18,20 +18,31 @@ const testCases = new Set([
   "/offset john doe => 1",
   "/offset john doe, jane doe => 2",
   "/offset john doe, jane doe and jim doe => 3",
-  "/offset john doe, jane doe and jim doe! => 3"
+  "/offset john doe, jane doe and jim doe! => 3",
+  "/- 2 no longer coming! => -2",
+  "/offset + 2 bringing a 14 yo! => 2",
+  "/offset - 2 no longer coming! => -2",
+  "/+\t2 john doe, jane doe, jim doe => 2",
+  "/offset 0 nobody extra! => 0",
+  "/offset -0 => 0",
+  "/- john doe, jane doe and jim doe! => -3",
+  "/offset john doe, jane doe and jim doe. => 3",
+  "/offset john doe, jane doe & jim doe? => 3",
+  "/offset Brandon and Amanda AND Sandra! => 3",
+  "/offset Zoë, 李明 and José! => 3",
+  "/offset John O'Neill and Anne-Marie! => 2",
+  "/offset John, and Jane, & Jim, => 3",
+  "/offset => 0",
+  "/+ => 0",
+  "/- => 0",
+  "/offset - !!! => 0",
+  "/offsetting John => 0",
+  "John and Jane are coming => 0"
 ])
 
-// @ts-expect-error - Named capturing groups are only available when targeting 'ES2018' or later.
-const testCaseRe = /(?<text>.+) => (?<expected>.+)/
-
 describe("getOffsetAmount", () => {
-  testCases.forEach((testCase) => {
-    const match = testCase.match(testCaseRe)
-    if (match) {
-      const { text, expected } = match.groups
-      test(testCase, () => {
-        expect(getOffsetAmount(text)).toBe(parseInt(expected))
-      })
-    }
+  test.each([...testCases])("%s", (testCase) => {
+    const [text, expected] = testCase.split(" => ")
+    expect(getOffsetAmount(text)).toBe(Number(expected))
   })
 })
