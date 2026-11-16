@@ -19,14 +19,12 @@ import {
 
 export type NudgeMode = PoetryMode | "mentions"
 
-const nudgeModes: NudgeMode[] = ["rhyme", "haiku", "mentions"]
-
 export async function nudge({
   botId,
   groupId,
   count,
   messageId,
-  mode = nudgeModes[Math.floor(Math.random() * nudgeModes.length)],
+  mode = Math.random() < 0.5 ? "rhyme" : "haiku",
   includePollResults = false
 }: {
   botId: string
@@ -139,7 +137,7 @@ const action: ActionFn = async ({ botId, group_id: groupId, id, text }) => {
   const mode = args.find(
     (arg): arg is NudgeMode =>
       arg === "rhyme" || arg === "haiku" || arg === "mentions"
-  )
+  ) ?? "mentions"
 
   await nudge({
     botId,

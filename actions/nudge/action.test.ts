@@ -127,16 +127,22 @@ describe("poetic nudges", () => {
     expect(post).toHaveBeenCalledTimes(1)
   })
 
-  test("keeps the default count of one and chooses rhyme randomly", async () => {
+  test("manual nudges can explicitly request rhyme", async () => {
+    await action(command("/nudge 2 rhyme"))
+    expect(JSON.parse(parse.mock.calls[0][0].input).mode).toBe("rhyme")
+    expect(post).toHaveBeenCalledTimes(1)
+  })
+
+  test("automatic nudges can randomly choose rhyme", async () => {
     vi.spyOn(Math, "random").mockReturnValue(0)
     parse.mockResolvedValue(response([rhymeVerses[0]]))
-    await action(command("/nudge"))
+    await nudge({ ...options, count: 1 })
     expect(JSON.parse(parse.mock.calls[0][0].input)).toMatchObject({ mode: "rhyme", players: [{ name: "Sam" }] })
     expect(post).toHaveBeenCalledTimes(1)
   })
 
-  test("can randomly choose haiku", async () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.5)
+  test.each([0.5, 0.9, 0.999])("automatic nudges choose haiku, never mentions, for random value %s", async (random) => {
+    vi.spyOn(Math, "random").mockReturnValue(random)
     parse.mockResolvedValue(response(haikuVerses))
     await nudge(options)
     expect(JSON.parse(parse.mock.calls[0][0].input).mode).toBe("haiku")
@@ -232,15 +238,15 @@ describe("poetic nudges", () => {
 })
 
 describe("mentions-only nudges", () => {
-  test("can randomly choose mentions without OpenAI", async () => {
-    vi.spyOn(Math, "random").mockReturnValue(0.9)
-    await nudge(options)
+  test.each([0, 0.5, 0.9])("manual nudges default to mentions regardless of random value %s", async (random) => {
+    vi.spyOn(Math, "random").mockReturnValue(random)
+    await action(command("/nudge 2"))
     expect(post).toHaveBeenCalledTimes(1)
     expect(vi.mocked(post).mock.calls[0][0].text).toBe("@Sam, @May")
     expect(parse).not.toHaveBeenCalled()
   })
 
-  test.each(["/nudge 2 mentions", "/nudge mentions 2"])("sends one comma-separated list for %s without OpenAI", async (text) => {
+  test.each(["/nudge 2", "/nudge 2 mentions", "/nudge mentions 2"])("sends one comma-separated list for %s without OpenAI", async (text) => {
     await action(command(text))
 
     expect(post).toHaveBeenCalledExactlyOnceWith({
@@ -255,8 +261,8 @@ describe("mentions-only nudges", () => {
     expect(captureApiError).not.toHaveBeenCalled()
   })
 
-  test("defaults to one eligible player", async () => {
-    await action(command("/nudge mentions"))
+  test.each(["/nudge", "/nudge mentions"])("defaults to one eligible player for %s", async (text) => {
+    await action(command(text))
     expect(post).toHaveBeenCalledTimes(1)
     expect(vi.mocked(post).mock.calls[0][0].text).toBe("@Sam")
     expect(parse).not.toHaveBeenCalled()
@@ -316,18 +322,20 @@ describe("scheduled poll reminders", () => {
     })
   })
 
-  test("can randomly post results and comma-separated mentions in one message", async () => {
+  test("automatically chooses haiku instead of sparse mentions at the upper random range", async () => {
     vi.spyOn(Math, "random").mockReturnValue(0.9)
+    parse.mockResolvedValue(response(haikuVerses))
     await runHandler()
     expect(post).toHaveBeenCalledTimes(1)
     const sent = vi.mocked(post).mock.calls[0][0]
-    expect(sent.text).toBe("Current Poll Results: 8 Yes, 2 No\n\n@Sam, @May")
+    expect(sent.text).toBe(`Current Poll Results: 8 Yes, 2 No\n\n${haikuVerses.map((lines, i) => lines.join("\n").replace("[[name]]", i === 0 ? "@Sam" : "@May")).join("\n\n")}`)
     expect(sent.attachments?.[0]).toEqual({
       type: "mentions",
       user_ids: ["sam", "may"],
       loci: [[sent.text.indexOf("@Sam"), 4], [sent.text.indexOf("@May"), 4]]
     })
-    expect(parse).not.toHaveBeenCalled()
+    expect(parse).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(parse.mock.calls[0][0].input).mode).toBe("haiku")
   })
 
   test("posts only results when everyone has voted", async () => {
