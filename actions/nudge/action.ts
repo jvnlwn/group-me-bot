@@ -1,11 +1,5 @@
-// import { readdirSync, readFileSync } from "fs"
-import OpenAI from "openai"
-// import { join } from "path"
 import post from "../../bot/post"
-import {
-  getAtMentionsAttachment,
-  getReplyAttachment
-} from "../../lib/attachment"
+import { getReplyAttachment } from "../../lib/attachment"
 import { getGroup } from "../../lib/group"
 import {
   computeWeightedYesLikelihood,
@@ -13,22 +7,25 @@ import {
   getNonPolledUsers,
   getPolls
 } from "../../lib/poll"
+import { captureApiError } from "../../lib/sentry"
 import { ActionFn, GroupMeAttachment, GroupMeUser } from "../../types"
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+import { getCurrentPollResultsText } from "../check/action"
+import { createFallbackReminder, createPoeticReminder, PoetryMode } from "./poetry"
 
 export async function nudge({
   botId,
   groupId,
   count,
-  messageId
+  messageId,
+  mode = Math.random() < 0.5 ? "rhyme" : "haiku",
+  includePollResults = false
 }: {
   botId: string
   groupId: string
   count: number
   messageId?: string
+  mode?: PoetryMode
+  includePollResults?: boolean
 }) {
   // TODO: filter out already nudged users.
   // This is handled by querying the list of messages occurring since
@@ -76,42 +73,31 @@ export async function nudge({
     })
 
   const users = sortedNonPolledUsers.slice(0, count)
+  const prefix = includePollResults
+    ? await getCurrentPollResultsText({ groupId, polls })
+    : ""
 
   if (users.length === 0) {
+    if (prefix) {
+      await post({ botId, text: prefix })
+      return
+    }
     throw new Error("No players to nudge.")
   }
 
-  const nicknames = users.map((user) => user.nickname)
-
-  // Get the total number of instructions-*.md files and choose
-  // a random number between 0 and the total number of files
-  // const dir = readdirSync(join(__dirname))
-  // const totalInstructions = dir.filter(
-  //   (file) => file.startsWith("instructions-") && file.endsWith(".md")
-  // ).length
-  // const randomInstructionsIndex = Math.floor(Math.random() * totalInstructions)
-  // const mdPath = join(
-  //   __dirname,
-  //   `instructions-${randomInstructionsIndex + 1}.md`
-  // )
-  // const instructions = readFileSync(mdPath, "utf-8")
-  const atMentions = nicknames.map((nickname) => `@${nickname}`).join(", ")
-  // const input = `Nudge: ${atMentions}`
-
-  // const response = await client.responses.create({
-  //   // model: "gpt-4o-mini",
-  //   model: "gpt-4o",
-  //   instructions,
-  //   input,
-  //   top_p: 0.5
-  // })
-
-  const attachments: GroupMeAttachment[] = [
-    getAtMentionsAttachment({
-      users: users,
-      text: atMentions
+  let reminder: Awaited<ReturnType<typeof createPoeticReminder>>
+  try {
+    reminder = await createPoeticReminder({ users, mode, prefix })
+  } catch (error) {
+    captureApiError(error, {
+      endpoint: "nudge",
+      groupId,
+      action: "generate_poem"
     })
-  ]
+    reminder = createFallbackReminder(users, prefix)
+  }
+
+  const attachments: GroupMeAttachment[] = [reminder.mentions]
 
   if (messageId) {
     attachments.push(getReplyAttachment(messageId))
@@ -119,7 +105,7 @@ export async function nudge({
 
   await post({
     botId,
-    text: nicknames.join(", "),
+    text: reminder.text,
     attachments
   })
 }
@@ -135,15 +121,18 @@ const action: ActionFn = async ({ botId, group_id: groupId, id, text }) => {
   // a "mentions" attachment. We could handle this case differently if we wanted,
   // like to have fun with the user who nudged since the user they are trying to
   // /nudge has already been nudged (AI response?).
-  const countRe = /\/nudge +(?<count>\d+)/
-  const matchCount = text.match(countRe)?.groups?.count || "1"
-  const count = matchCount ? parseInt(matchCount) : 0
+  const args = text.trim().split(/\s+/).slice(1)
+  const count = Number(args.find((arg) => /^\d+$/.test(arg)) ?? "1")
+  const mode = args.find(
+    (arg): arg is PoetryMode => arg === "rhyme" || arg === "haiku"
+  )
 
   await nudge({
     botId,
     groupId,
     count,
-    messageId: id
+    messageId: id,
+    mode
   })
 }
 

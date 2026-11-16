@@ -1,5 +1,6 @@
 .vercel
 .env
+.envjoe
 .DS_Store
 /node_modules
 /actions/celebrate/data

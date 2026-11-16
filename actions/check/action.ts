@@ -104,6 +104,25 @@ async function getPollOffset(poll: GroupMePoll) {
 
 // Check for current poll results. Mainly just a workaround for a bug in Group Me where
 // poll results can be stale in the app.
+export async function getCurrentPollResultsText({
+  groupId,
+  polls
+}: {
+  groupId: string
+  polls?: GroupMePoll[]
+}) {
+  const activePoll = await getActivePoll({
+    groupId,
+    polls: polls ?? (await getPolls({ groupId })).polls
+  })
+
+  if (!activePoll) {
+    throw new Error("No active poll found.")
+  }
+
+  return `Current Poll Results: ${await getPollResultsText(activePoll)}`
+}
+
 export async function check({
   botId,
   groupId,
@@ -113,16 +132,7 @@ export async function check({
   groupId: string
   messageId?: string
 }) {
-  const activePoll = await getActivePoll({
-    groupId,
-    polls: (await getPolls({ groupId })).polls
-  })
-
-  if (!activePoll) {
-    throw new Error("No active poll found.")
-  }
-
-  const text = `Current Poll Results: ${await getPollResultsText(activePoll)}`
+  const text = await getCurrentPollResultsText({ groupId })
 
   const attachments: GroupMeAttachment[] = []
 
