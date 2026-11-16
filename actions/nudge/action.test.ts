@@ -109,6 +109,7 @@ describe("poetic nudges", () => {
     expect(request).toMatchObject({
       model: "gpt-6.1-sol",
       reasoning: { effort: "low" },
+      service_tier: "fast",
       max_output_tokens: 2000,
       store: false
     })

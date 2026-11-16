@@ -4,7 +4,7 @@ Application: GroupMe soccer poll reminder bot.
 Mode: implementation, explicitly requested November 16, 2026, alongside live testing in Bot Test only.
 Approved stage: update the poem model and necessary compatibility controls, then validate locally and in Bot Test. The user subsequently authorized committing, pushing, and deploying these changes to Vercel. Do not send test messages to the Tuesday or Friday groups.
 Existing integration: OpenAI Node SDK 4.96.0, direct Responses API, one shared createPoeticReminder path used by manual nudges and scheduled reminders.
-Selected integration: same SDK and endpoint, gpt-6.1-sol with low reasoning effort.
+Selected integration: same SDK and endpoint, gpt-6.1-sol with low reasoning effort and Fast processing, explicitly requested as a latency follow-up.
 Credential decision: use the new key saved by the user in .env. Do not disclose or rotate it.
 Privacy: preserve store: false and existing stateless requests. Account-level ZDR and residency are unknown; no new state, regional routing, or retention configuration is introduced or claimed.
 
@@ -18,6 +18,7 @@ Official sources checked November 16, 2026:
 - https://developers.openai.com/api/docs/models/gpt-6.1-sol
 - https://developers.openai.com/api/docs/models/gpt-6-luna
 - https://developers.openai.com/api/docs/guides/latest-model
+- https://developers.openai.com/api/docs/guides/fast-mode
 
 ## Capability review
 
@@ -27,7 +28,7 @@ Official sources checked November 16, 2026:
 - Streaming: not applicable; the complete poem must validate before a single GroupMe post.
 - WebSocket mode: not applicable; short independent HTTP requests without tool loops.
 - Data privacy and residency: applicable; preserve existing global endpoint and store: false. ZDR is not inferred from that flag.
-- Processing tiers: preserve existing default processing for the same short request path. Priority/Flex/Batch/reserved routing is outside this model-update stage.
+- Processing tiers: the latency follow-up explicitly requests a fast model/mode. Set service_tier: "fast" for both manual and scheduled reminders, retaining Sol/low to preserve the tested poetry behavior. Fast costs twice Standard for Sol. Flex, Batch, reserved routing, and Ultrafast are outside this request.
 - Prompt caching: no cache configuration change is needed for this model-only update. Random personas and infrequent independent requests provide limited reuse.
 - Prompt cache keys: no key is currently configured; none added for GPT-6.
 - Extended cache retention: earlier-model guidance is not applicable; no retention change.
@@ -51,7 +52,7 @@ Official sources checked November 16, 2026:
 - Model-aligned tool interfaces: not applicable; no custom model tools.
 - New GPT-6 async calling, steering, and multi-agent capabilities: not applicable to this single-response workload.
 
-## Workflows and validation
+## Initial workflows and validation
 
 - Manual /nudge: shared Sol/low request; unit tests assert both rhyme and haiku request controls and exactly one post with mentions/reply.
 - Scheduled poll_reminder: same model path; unit tests cover combined results plus poetry in one message.
@@ -63,3 +64,12 @@ Official sources checked November 16, 2026:
 - Test limit: live testing covers real model generation and real post/mention delivery for the test group's single member. Full reminder selection/scheduling and multiple recipients are covered by mocked tests; no test poll or voting history was fabricated.
 
 Deployment is authorized as a follow-up to the model-update request. Verify build and deployment status without invoking production messaging endpoints. No broader API migration is required.
+
+## Fast mode follow-up
+
+- Objective and scope: implement the user's request for Fast mode, verify locally, then use the existing Git-triggered deployment workflow. The suspected Vercel timeout is unconfirmed. No GroupMe messages are needed for this validation.
+- Compatibility: current official documentation supports service_tier: "fast" on Responses with gpt-6.1-sol. SDK 4.96.0's service_tier union predates Fast/Priority, but its README explicitly supports newer request values with a targeted @ts-expect-error, forwarding them unchanged. Keep the installed SDK and schema parser; verify the actual HTTP request and response tier in a local smoke test.
+- Behavior: keep low reasoning effort, the 2000-token output cap, store: false, persona prompts, validation, one regeneration attempt, single GroupMe post, and fallback. All earlier capability-review entries remain applicable except processing tiers.
+- Timeout evidence: each OpenAI request has a 15-second timeout and no SDK retries; two validation attempts can take roughly 30 seconds before GroupMe work. No explicit duration appears in vercel.json or the project's returned resourceConfig. This does not establish the effective deployed limit or prove a function timeout.
+- Validation: all 57 tests pass, including Fast-tier assertions for both poem modes, and npx tsc --noEmit passes. The separate offset-parser fix and generated-build exclusion remain green.
+- Live OpenAI-only smoke check: both requests returned HTTP 200, completed status, and service_tier: "fast"; the production generator validated both poems and mention mappings for synthetic names Sam and May. Rhyme completed in 6.367 seconds and haiku in 4.075 seconds, with one request per mode and zero GroupMe requests. These are two local observations, not a latency guarantee, a Standard-versus-Fast benchmark, or proof that a Vercel timeout is fixed.

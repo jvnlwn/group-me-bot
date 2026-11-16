@@ -87,6 +87,8 @@ export async function createPoeticReminder({
     const response = await client.responses.parse({
       model: "gpt-6.1-sol",
       reasoning: { effort: "low" },
+      // @ts-expect-error SDK 4.96 predates the documented Fast tier; it forwards this value unchanged.
+      service_tier: "fast",
       instructions,
       input: JSON.stringify({
         mode,

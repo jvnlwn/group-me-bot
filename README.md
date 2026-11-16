@@ -31,7 +31,8 @@
 
 ### Poetic poll reminders
 
-- Set `OPENAI_API_KEY` in the Vercel environment (and locally when running the bot). Reminders use `gpt-6.1-sol` with low reasoning effort through the OpenAI Responses API.
+- Set `OPENAI_API_KEY` in the Vercel environment (and locally when running the bot). Reminders use `gpt-6.1-sol` with low reasoning effort and `service_tier: "fast"` through the OpenAI Responses API. [Fast mode](https://developers.openai.com/api/docs/guides/fast-mode) reduces latency; Sol's Fast token rates are twice Standard.
+- Each OpenAI request has a 15-second timeout with SDK retries disabled. Invalid output can trigger one regeneration, so generation may take up to roughly 30 seconds across both attempts, in addition to GroupMe API calls. Fast mode does not guarantee completion within the Vercel function limit.
 - Without an explicit mode, each reminder randomly chooses rhyming couplets or one haiku per player, alongside a random persona from `actions/nudge/instructions-1.md` through `instructions-10.md`.
 - Shared rules live in `actions/nudge/poetry-instructions.md`. In rhyme mode each player's name ends a line and rhymes with the other line; haikus aim for 5/7/5 syllables with the exact name inline. Rhyme and syllable quality depend on the model.
 - Scheduled reminders include all eligible nonvoters and the current poll results in a single post. `/check` still posts results on its own.
